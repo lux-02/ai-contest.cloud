@@ -34,7 +34,7 @@
       "prizePoolKrw": 72500000,
       "prizeLabel": "₩72,500,000",
       "viewCount": 5,
-      "applyCount": 3,
+      "applyCount": 4,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -86,7 +86,7 @@
       "prizePoolKrw": 21750000,
       "prizeLabel": "₩21,750,000",
       "viewCount": 0,
-      "applyCount": 0,
+      "applyCount": 1,
       "categories": [
         "multimodal-ai",
         "generative-ai"
@@ -132,7 +132,7 @@
       "prizePoolKrw": 8700000,
       "prizeLabel": "₩8,700,000",
       "viewCount": 0,
-      "applyCount": 0,
+      "applyCount": 1,
       "categories": [
         "llm-agents",
         "ai-for-social-good"
@@ -173,8 +173,8 @@
       "deadlineDate": "2026-03-25",
       "prizePoolKrw": 17400000,
       "prizeLabel": "₩17,400,000",
-      "viewCount": 0,
-      "applyCount": 0,
+      "viewCount": 1,
+      "applyCount": 1,
       "categories": [
         "robotics",
         "ai-infra-systems"
@@ -214,8 +214,8 @@
       "deadlineDate": "2026-03-28",
       "prizePoolKrw": 1450000,
       "prizeLabel": "₩1,450,000",
-      "viewCount": 0,
-      "applyCount": 0,
+      "viewCount": 1,
+      "applyCount": 1,
       "categories": [
         "generative-ai"
       ],
@@ -241,8 +241,8 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "₩580,000",
-      "viewCount": 98,
-      "applyCount": 0,
+      "viewCount": 99,
+      "applyCount": 1,
       "categories": [
         "generative-ai"
       ],
@@ -278,8 +278,8 @@
       "deadlineDate": "2026-04-05",
       "prizePoolKrw": 36250000,
       "prizeLabel": "₩36,250,000",
-      "viewCount": 0,
-      "applyCount": 0,
+      "viewCount": 1,
+      "applyCount": 1,
       "categories": [
         "computer-vision",
         "ai-for-social-good"
@@ -324,8 +324,8 @@
       "deadlineDate": "2026-04-12",
       "prizePoolKrw": 43500000,
       "prizeLabel": "₩43,500,000",
-      "viewCount": 0,
-      "applyCount": 0,
+      "viewCount": 1,
+      "applyCount": 1,
       "categories": [
         "data-science",
         "ai-for-social-good"
@@ -365,8 +365,8 @@
       "deadlineDate": "2026-04-30",
       "prizePoolKrw": 12800000,
       "prizeLabel": "₩12,800,000",
-      "viewCount": 0,
-      "applyCount": 0,
+      "viewCount": 1,
+      "applyCount": 1,
       "categories": [
         "generative-ai"
       ],
