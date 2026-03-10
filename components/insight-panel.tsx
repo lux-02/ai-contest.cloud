@@ -1,9 +1,13 @@
-import { StrategyLabPanel } from "@/components/strategy-lab-panel";
-import { getDaysUntil } from "@/lib/utils";
-import type { Contest } from "@/types/contest";
+"use client";
+
+import type { Contest, ContestIdeationSession } from "@/types/contest";
 
 interface InsightPanelProps {
   contest: Contest;
+  ideationSession: ContestIdeationSession | null;
+  isLoggedIn: boolean;
+  isOpening: boolean;
+  onOpenIdeation: () => void;
 }
 
 function splitReportLines(text: string) {
@@ -26,59 +30,31 @@ function summarizeSubmissionItems(contest: Contest) {
     return items[0];
   }
 
-  return `${items.length}개 항목`;
-}
-
-function buildChecklist(contest: Contest) {
-  const baseItems = [
-    contest.eligibilityText
-      ? "참가 자격과 제출 전 필요한 증빙 서류를 먼저 체크하기"
-      : "참가 자격, 제출 계정, 연락처 정보를 먼저 정리하기",
-    contest.applyUrl
-      ? "신청 링크와 제출 폼 항목을 미리 열어 보고, 마지막 업로드 방식까지 확인하기"
-      : "원문 공고에서 접수 경로와 마감 직전 제출 절차를 다시 확인하기",
-    contest.submissionFormat
-      ? `제출 형식 요건을 기준으로 결과물 포맷과 파일 용량을 미리 맞춰 두기`
-      : "결과물 포맷, 분량, 제출 파일 이름 규칙을 먼저 정리하기",
-    contest.teamAllowed
-      ? "팀 역할 분담과 피드백 일정을 먼저 고정하고, 데모·발표·제출 담당을 나누기"
-      : "개인 참가 기준에 맞게 제작 범위를 줄이고 데모 완성도를 우선순위에 두기",
-  ];
-
-  if (contest.datasetProvided) {
-    baseItems.push("제공 자료와 데이터셋의 사용 범위, 저작권 조건, 평가 기준을 먼저 읽기");
-  }
-
-  const submissionItemSummary = summarizeSubmissionItems(contest);
-
-  if (submissionItemSummary) {
-    baseItems.push(`접수 항목과 필수 증빙을 미리 체크리스트로 정리하기 (${submissionItemSummary})`);
-  }
-
-  if ((getDaysUntil(contest.deadline) ?? 99) <= 7) {
-    baseItems.push("마감 직전 업로드 이슈를 피하려고 제출 하루 전 내부 마감 시점을 따로 잡기");
-  }
-
-  if (contest.language === "English") {
-    baseItems.push("영문 발표 스크립트와 데모 설명 문장을 미리 준비하기");
-  }
-
-  return Array.from(new Set(baseItems)).slice(0, 5);
+  return `${items.length}개 접수 항목`;
 }
 
 function buildExecutionPlan(contest: Contest) {
-  return Array.from(new Set([...splitReportLines(contest.analysis.winStrategy), ...buildChecklist(contest)])).slice(0, 6);
+  const lines = splitReportLines(contest.analysis.winStrategy);
+  const items = [
+    lines[0],
+    lines[1],
+    contest.judgingCriteria?.[0]?.label ? `${contest.judgingCriteria[0].label} 기준을 데모에 직접 드러내기` : null,
+    summarizeSubmissionItems(contest) ? `${summarizeSubmissionItems(contest)}을 제출 직전에 다시 점검하기` : null,
+  ];
+
+  return items.filter((item): item is string => Boolean(item)).slice(0, 4);
 }
 
-function buildSignalSummary(contest: Contest) {
-  if (contest.judgingCriteria?.length) {
-    return contest.judgingCriteria
-      .slice(0, 3)
-      .map((criterion) => (criterion.weight ? `${criterion.label} ${criterion.weight}%` : criterion.label))
-      .join(" · ");
+function buildStrategyCtaLabel(session: ContestIdeationSession | null) {
+  if (!session) {
+    return "이 전략 기반으로 아이디어 brainstorm 해볼까요?";
   }
 
-  return contest.analysis.judgingFocus;
+  if (session.status === "selected") {
+    return "확정한 아이디어와 Matrix 다시 보기";
+  }
+
+  return "이전 브레인스토밍 이어서 보기";
 }
 
 function StatusNotice({ contest }: { contest: Contest }) {
@@ -107,40 +83,33 @@ function StatusNotice({ contest }: { contest: Contest }) {
   return null;
 }
 
-export function InsightPanel({ contest }: InsightPanelProps) {
-  const { analysis } = contest;
+export function InsightPanel({ contest, ideationSession, isLoggedIn, isOpening, onOpenIdeation }: InsightPanelProps) {
   const executionPlan = buildExecutionPlan(contest);
-  const signalSummary = buildSignalSummary(contest);
+  const ctaLabel = buildStrategyCtaLabel(ideationSession);
 
   return (
     <section className="surface-card rounded-[32px] p-7 md:p-8">
       <div className="max-w-3xl">
         <div className="eyebrow">AI 전략 리포트</div>
         <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
-          공고와 심사 기준을 기준으로, 바로 실행할 플랜만 추렸습니다.
+          심사 기준과 제출 요건을 기준으로, 바로 실행할 전략만 남겼습니다.
         </h2>
         <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-          공고 정보와 겹치는 설명은 빼고, 상위권에 가까워지는 실행 순서만 간단하게 정리했습니다.
+          공고 내용과 겹치는 설명은 걷어내고, 상위권 설계에 직접 필요한 판단만 짧게 정리했습니다.
         </p>
       </div>
 
-      {analysis.analysisStatus !== "completed" ? (
-        <>
-          <div className="mt-6">
-            <StatusNotice contest={contest} />
-          </div>
-          <StrategyLabPanel slug={contest.slug} title={contest.title} />
-        </>
+      {contest.analysis.analysisStatus !== "completed" ? (
+        <div className="mt-6">
+          <StatusNotice contest={contest} />
+        </div>
       ) : (
-        <>
-          <div className="mt-6 space-y-5">
+        <div className="mt-6 grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
+          <div className="space-y-5">
             <div className="insight-card">
               <div className="insight-label">핵심 메모</div>
-              <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{analysis.recommendReason}</p>
-              <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{analysis.summary}</p>
-              {signalSummary ? (
-                <p className="mt-4 text-xs leading-6 text-[var(--muted)]">심사 기준 포인트: {signalSummary}</p>
-              ) : null}
+              <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{contest.analysis.recommendReason}</p>
+              <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{contest.analysis.summary}</p>
             </div>
 
             <div className="insight-card">
@@ -155,14 +124,50 @@ export function InsightPanel({ contest }: InsightPanelProps) {
                   </div>
                 ))}
               </div>
-              <p className="mt-4 text-xs leading-6 text-[var(--muted)]">
-                Generated by {analysis.modelName ?? "GPT"} · prompt {analysis.promptVersion ?? "contest-v1"}
-              </p>
             </div>
           </div>
 
-          <StrategyLabPanel slug={contest.slug} title={contest.title} />
-        </>
+          <div className="rounded-[26px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-6">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">다음 단계</div>
+            <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
+              전략을 읽었다면, 이제 Why → How → What → Matrix 순서로 아이디어를 좁히면 됩니다.
+            </h3>
+            <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+              {isLoggedIn
+                ? "선택지 3개에서 WHY를 고르고, 영향 가설을 세운 뒤, 아이디어 후보를 Matrix로 객관적으로 추릴 수 있습니다."
+                : "로그인 후 브레인스토밍을 시작하면 단계별 draft가 자동 저장되고, 나중에 이어서 볼 수 있습니다."}
+            </p>
+
+            {ideationSession ? (
+              <div className="mt-5 rounded-[20px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">현재 저장 상태</div>
+                <div className="mt-3 text-sm font-semibold text-[var(--foreground)]">
+                  {ideationSession.status === "selected"
+                    ? "아이디어 확정 완료"
+                    : `현재 단계: ${ideationSession.currentStage === "why"
+                        ? "Why"
+                        : ideationSession.currentStage === "how"
+                          ? "How"
+                          : ideationSession.currentStage === "what"
+                            ? "What"
+                            : ideationSession.currentStage === "matrix"
+                              ? "Decision Matrix"
+                              : "전략 분석"}`}
+                </div>
+                {ideationSession.matrixSummary ? (
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ideationSession.matrixSummary}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <button type="button" onClick={onOpenIdeation} className="primary-button mt-6 w-full" disabled={isOpening}>
+              {isOpening ? "불러오는 중..." : ctaLabel}
+            </button>
+            <p className="mt-3 text-xs leading-6 text-[var(--muted)]">
+              Generated by {contest.analysis.modelName ?? "GPT"} · prompt {contest.analysis.promptVersion ?? "contest-v1"}
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );

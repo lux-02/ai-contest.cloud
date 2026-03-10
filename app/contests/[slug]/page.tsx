@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { BadgePill } from "@/components/badge-pill";
 import { ContestHeroActions } from "@/components/contest-hero-actions";
 import { ContestPoster } from "@/components/contest-poster";
-import { InsightPanel } from "@/components/insight-panel";
+import { ContestPreparationExperience } from "@/components/contest-preparation-experience";
 import { JudgingCriteriaChart } from "@/components/judging-criteria-chart";
 import { getContestBySlug } from "@/lib/queries";
+import { getContestIdeationSession } from "@/lib/server/contest-ideation";
 import { registerContestView } from "@/lib/server/contest-metrics";
 import { getContestTrackingState } from "@/lib/server/contest-tracking";
 import { getViewerSession } from "@/lib/server/viewer-auth";
@@ -95,7 +96,9 @@ export default async function ContestDetailPage({ params }: PageProps) {
     viewCount: (contest.viewCount ?? 0) + 1,
   } satisfies Contest;
 
-  const trackingState = viewerSession.user ? await getContestTrackingState(contest.id) : null;
+  const [trackingState, ideationSession] = viewerSession.user
+    ? await Promise.all([getContestTrackingState(contest.id), getContestIdeationSession(contestMetrics, viewerSession.user.id)])
+    : [null, null];
 
   return (
     <main className="mx-auto max-w-7xl px-6 pb-20 pt-10">
@@ -245,9 +248,11 @@ export default async function ContestDetailPage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="mt-8">
-        <InsightPanel contest={contestMetrics} />
-      </section>
+      <ContestPreparationExperience
+        contest={contestMetrics}
+        isLoggedIn={Boolean(viewerSession.user)}
+        initialSession={ideationSession}
+      />
 
       <section className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="surface-card rounded-[32px] p-7">

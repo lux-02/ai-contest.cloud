@@ -22,6 +22,18 @@ type StrategyReportRow = QueryResultRow & {
   model_name: string | null;
 };
 
+type StrategySourceRow = QueryResultRow & {
+  source_label: string | null;
+  source_type: string;
+  url: string | null;
+  title: string;
+  snippet: string;
+  search_query: string | null;
+  ranking_score: number | null;
+  citation_score: number | null;
+  selected_for_citation: boolean | null;
+};
+
 function parseArray<T>(value: unknown) {
   return Array.isArray(value) ? (value as T[]) : [];
 }
@@ -186,5 +198,45 @@ export async function upsertStrategyReport(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+export async function getStoredStrategySources(contestId: string) {
+  try {
+    const pool = getDbPool();
+    const result = await pool.query<StrategySourceRow>(
+      `
+        select
+          strategy_sources.source_label,
+          strategy_sources.source_type,
+          strategy_sources.url,
+          strategy_sources.title,
+          strategy_sources.snippet,
+          strategy_sources.search_query,
+          strategy_sources.ranking_score,
+          strategy_sources.citation_score,
+          strategy_sources.selected_for_citation
+        from public.contest_strategy_sources as strategy_sources
+        inner join public.contest_strategy_reports as reports
+          on reports.id = strategy_sources.report_id
+        where reports.contest_id = $1
+        order by strategy_sources.selected_for_citation desc nulls last, strategy_sources.citation_score desc nulls last, strategy_sources.ranking_score desc nulls last
+      `,
+      [contestId],
+    );
+
+    return result.rows.map((row) => ({
+      label: row.source_label ?? "",
+      sourceType: row.source_type,
+      url: row.url,
+      title: row.title,
+      snippet: row.snippet,
+      searchQuery: row.search_query,
+      rankingScore: row.ranking_score,
+      citationScore: row.citation_score,
+      selectedForCitation: row.selected_for_citation,
+    }));
+  } catch {
+    return [];
   }
 }

@@ -51,6 +51,27 @@ export const contestTrackingStatusOptions = [
   { id: "applied", label: "Applied" },
 ] as const;
 
+export const contestIdeationStatusOptions = [
+  { id: "draft", label: "Draft" },
+  { id: "selected", label: "Selected" },
+  { id: "archived", label: "Archived" },
+] as const;
+
+export const contestIdeationStageOptions = [
+  { id: "strategy", label: "전략 분석" },
+  { id: "why", label: "Why" },
+  { id: "how", label: "How" },
+  { id: "what", label: "What" },
+  { id: "matrix", label: "Decision Matrix" },
+  { id: "selected", label: "아이디어 확정" },
+] as const;
+
+export const contestDecisionMatrixPresetOptions = [
+  { id: "balanced", label: "균형형" },
+  { id: "impact", label: "임팩트형" },
+  { id: "deadline", label: "마감압박형" },
+] as const;
+
 export type ContestBadge = (typeof contestBadgeOptions)[number]["id"];
 export type ContestCategory = (typeof contestCategoryOptions)[number]["id"];
 export type ContestDifficulty = (typeof difficultyOptions)[number]["id"];
@@ -58,6 +79,9 @@ export type ContestOrganizerType = (typeof organizerTypeOptions)[number]["id"];
 export type ContestSortOption = (typeof contestSortOptions)[number]["id"];
 export type ContestTeamFilter = (typeof contestTeamFilterOptions)[number]["id"];
 export type ContestTrackingStatus = (typeof contestTrackingStatusOptions)[number]["id"];
+export type ContestIdeationStatus = (typeof contestIdeationStatusOptions)[number]["id"];
+export type ContestIdeationStage = (typeof contestIdeationStageOptions)[number]["id"];
+export type ContestDecisionMatrixPreset = (typeof contestDecisionMatrixPresetOptions)[number]["id"];
 export type ContestMode = "online" | "offline" | "hybrid";
 export type ContestStatus = "draft" | "published" | "archived";
 export type ContestAnalysisStatus = "pending" | "completed" | "failed";
@@ -183,6 +207,106 @@ export interface ContestStrategyLabResult {
   promptVersion?: string | null;
   modelName?: string | null;
   status: ContestAnalysisStatus;
+}
+
+export interface ContestDecisionMatrixWeights {
+  impact: number;
+  feasibility: number;
+  alignment: number;
+  speed: number;
+}
+
+export interface ContestDecisionMatrixScore {
+  impact: number;
+  feasibility: number;
+  alignment: number;
+  speed: number;
+  total: number;
+  reason: string;
+}
+
+export interface ContestWhyOption {
+  id: string;
+  title: string;
+  body: string;
+  source: "ai" | "user";
+  isSelected: boolean;
+  displayOrder: number;
+}
+
+export interface ContestHowHypothesis {
+  id: string;
+  title: string;
+  body: string;
+  impactTarget: string;
+  judgeAppeal: string;
+  measurableOutcome: string;
+  source: "ai" | "user";
+  isSelected: boolean;
+  displayOrder: number;
+}
+
+export interface ContestIdeaCandidate {
+  id: string;
+  title: string;
+  description: string;
+  pros: string[];
+  cons: string[];
+  fitReason: string;
+  source: "ai" | "user";
+  voteState: "liked" | "skipped" | "neutral";
+  isSelected: boolean;
+  matrixScores?: ContestDecisionMatrixScore;
+  displayOrder: number;
+}
+
+export interface ContestDecisionMatrixRow extends ContestIdeaCandidate {
+  matrixScores: ContestDecisionMatrixScore;
+}
+
+export interface ContestIdeationProgress {
+  strategy: number;
+  ideation: number;
+  team: number;
+}
+
+export interface ContestIdeationSession {
+  id: string;
+  contestId: string;
+  userId: string;
+  status: ContestIdeationStatus;
+  currentStage: ContestIdeationStage;
+  strategyReviewedAt?: string | null;
+  selectedWhy?: string | null;
+  selectedHow?: string | null;
+  whyEditedText?: string | null;
+  howEditedText?: string | null;
+  userIdeaSeed?: string | null;
+  selectedIdeaId?: string | null;
+  selectedMatrixPreset?: ContestDecisionMatrixPreset | null;
+  recommendedMatrixPreset: ContestDecisionMatrixPreset;
+  matrixWeights: ContestDecisionMatrixWeights;
+  progress: ContestIdeationProgress;
+  whyOptions: ContestWhyOption[];
+  selectedWhyId?: string | null;
+  howHypotheses: ContestHowHypothesis[];
+  selectedHowId?: string | null;
+  ideaCandidates: ContestIdeaCandidate[];
+  matrixRows: ContestDecisionMatrixRow[];
+  topRecommendations: ContestDecisionMatrixRow[];
+  matrixSummary?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ContestTeamHandoff {
+  contestId: string;
+  sessionId: string;
+  why: string;
+  how: string;
+  ideaTitle: string;
+  ideaDescription: string;
+  matrixSummary: string;
+  nextStep: string;
 }
 
 export interface ContestFilters {
