@@ -22,7 +22,7 @@ function TrackingSection({
           <h2 className="text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">{title}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{body}</p>
         </div>
-        <div className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
+        <div className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
           {entries.length}
         </div>
       </div>
@@ -33,7 +33,7 @@ function TrackingSection({
             <div key={contest.id} className="space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {tracking.status ? (
-                  <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 font-semibold text-[var(--foreground)]">
+                  <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 font-semibold text-[var(--foreground)]">
                     {formatTrackingStatus(tracking.status)}
                   </span>
                 ) : null}
@@ -48,7 +48,7 @@ function TrackingSection({
           ))}
         </div>
       ) : (
-        <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-white/70 px-5 py-6 text-sm leading-6 text-[var(--muted)]">
+        <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-5 py-6 text-sm leading-6 text-[var(--muted)]">
           아직 저장한 대회가 없습니다. 마음에 드는 공모전에서 상태를 먼저 남겨보세요.
         </div>
       )}

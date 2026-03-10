@@ -47,7 +47,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps) {
         <p className="mt-4 text-base leading-7 text-[var(--muted)]">
           공모전 등록, 수정, 삭제와 포스터 업로드는 로그인한 관리자 세션에서만 열립니다.
         </p>
-        <div className="mt-6 rounded-[22px] border border-[var(--border)] bg-white/80 px-4 py-4 text-sm leading-6 text-[var(--muted)]">
+        <div className="mt-6 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm leading-6 text-[var(--muted)]">
           관리자 이메일과 비밀번호를 입력하면 직전에 요청한 관리자 페이지로 바로 이동합니다.
         </div>
         <div className="mt-8">

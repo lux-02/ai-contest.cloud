@@ -1,21 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f4ee;
-  --background-strong: #f0ece5;
-  --surface: rgba(255, 255, 255, 0.9);
-  --surface-elevated: rgba(255, 255, 255, 0.96);
-  --surface-muted: #f4f0e8;
-  --foreground: #111111;
-  --muted: #666257;
-  --border: rgba(17, 17, 17, 0.08);
-  --accent: #111111;
-  --accent-strong: #2f2f2f;
-  --accent-soft: rgba(17, 17, 17, 0.04);
-  --success: #557a57;
-  --warning: #9a7b1b;
-  --danger: #b85c4a;
-  --shadow: 0 20px 50px rgba(22, 19, 13, 0.06);
+  color-scheme: dark;
+  --background: #050608;
+  --background-strong: #0a0c10;
+  --surface: rgba(14, 17, 21, 0.8);
+  --surface-elevated: rgba(14, 17, 21, 0.92);
+  --surface-muted: #10141a;
+  --foreground: #f5f1e8;
+  --muted: #a8a39a;
+  --border: rgba(245, 241, 232, 0.1);
+  --accent: #f5f1e8;
+  --accent-strong: #ffffff;
+  --accent-soft: rgba(245, 241, 232, 0.06);
+  --success: #88d1ab;
+  --warning: #d7b873;
+  --danger: #ea8b76;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
 }
 
 * {
@@ -30,7 +31,10 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f5ef 0%, #f4f0e9 100%);
+  background:
+    radial-gradient(circle at top, rgba(113, 134, 173, 0.14), transparent 26%),
+    radial-gradient(circle at 82% 4%, rgba(255, 255, 255, 0.06), transparent 18%),
+    linear-gradient(180deg, #060709 0%, #090b0f 100%);
   color: var(--foreground);
   font-family:
     var(--font-sans),
@@ -45,8 +49,8 @@ a {
 }
 
 ::selection {
-  background: rgba(17, 17, 17, 0.12);
-  color: #111111;
+  background: rgba(245, 241, 232, 0.22);
+  color: #090b0f;
 }
 
 .surface-card {
@@ -54,7 +58,7 @@ a {
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface-elevated);
-  box-shadow: 0 18px 40px rgba(22, 19, 13, 0.04);
+  box-shadow: var(--shadow);
 }
 
 .eyebrow {
@@ -62,7 +66,7 @@ a {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(102, 98, 87, 0.8);
+  color: rgba(168, 163, 154, 0.84);
 }
 
 .serif-display {
@@ -74,7 +78,7 @@ a {
 }
 
 .gradient-text {
-  background-image: linear-gradient(120deg, #111111 8%, #3b3b3b 44%, #111111 78%);
+  background-image: linear-gradient(120deg, #f8f4ed 8%, #bcc8db 48%, #f8f4ed 82%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -89,16 +93,16 @@ a {
   position: relative;
   border: 1px solid var(--border);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.03);
   padding: 1rem 1.1rem;
 }
 
 .contest-card {
   border: 1px solid var(--border);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(15, 18, 22, 0.9);
   padding: 1.4rem;
-  box-shadow: 0 10px 24px rgba(22, 19, 13, 0.04);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
   transition:
     transform 180ms ease,
     border-color 180ms ease,
@@ -107,8 +111,8 @@ a {
 
 .contest-card:hover {
   transform: translateY(-1px);
-  border-color: rgba(17, 17, 17, 0.12);
-  box-shadow: 0 16px 32px rgba(22, 19, 13, 0.06);
+  border-color: rgba(245, 241, 232, 0.14);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.3);
 }
 
 .badge-pill {
@@ -128,7 +132,7 @@ a {
   align-items: center;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.58rem 0.82rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -140,8 +144,8 @@ a {
   align-items: center;
   gap: 0.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(17, 17, 17, 0.08);
-  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
   padding: 0.48rem 0.8rem;
   font-size: 0.78rem;
   font-weight: 700;
@@ -153,13 +157,13 @@ a {
   height: 0.55rem;
   width: 0.55rem;
   border-radius: 999px;
-  background: #111111;
+  background: #8ba4d8;
 }
 
 .report-card {
   border: 1px solid var(--border);
   border-radius: 24px;
-  background: var(--surface-muted);
+  background: rgba(255, 255, 255, 0.03);
   padding: 1.15rem;
 }
 
@@ -169,27 +173,27 @@ a {
   justify-content: center;
   gap: 0.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(17, 17, 17, 0.06);
-  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #f5f1e8;
   padding: 0.8rem 1.28rem;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #ffffff !important;
+  color: #090b0f !important;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
     filter 160ms ease;
-  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .primary-button:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.02);
   transform: translateY(-1px);
 }
 
 .primary-button:visited,
 .primary-button:active {
-  color: #ffffff !important;
+  color: #090b0f !important;
 }
 
 .secondary-button {
@@ -198,7 +202,7 @@ a {
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.78rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 700;
@@ -211,9 +215,9 @@ a {
 }
 
 .secondary-button:hover {
-  border-color: rgba(17, 17, 17, 0.14);
-  background: #ffffff;
-  color: #111111;
+  border-color: rgba(245, 241, 232, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
 }
 
 .danger-button {
@@ -241,7 +245,7 @@ a {
 .insight-card {
   border: 1px solid var(--border);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.03);
   padding: 1.25rem;
 }
 
@@ -250,7 +254,7 @@ a {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(102, 98, 87, 0.78);
+  color: rgba(168, 163, 154, 0.78);
 }
 
 .report-step {
@@ -260,7 +264,7 @@ a {
   align-items: start;
   border-radius: 20px;
   border: 1px solid var(--border);
-  background: rgba(247, 244, 238, 0.9);
+  background: rgba(255, 255, 255, 0.025);
   padding: 0.95rem 1rem;
 }
 
@@ -270,18 +274,18 @@ a {
   min-height: 340px;
   border: 1px solid var(--border);
   border-radius: 28px;
-  background: #f1ede5;
-  box-shadow: 0 18px 42px rgba(22, 19, 13, 0.08);
+  background: #0f1216;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
 }
 
 .poster-noise {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.34), transparent 28%),
-    radial-gradient(circle at 80% 24%, rgba(0, 0, 0, 0.04), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%);
-  opacity: 0.65;
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.08), transparent 24%),
+    radial-gradient(circle at 82% 22%, rgba(151, 178, 226, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 55%);
+  opacity: 0.9;
 }
 
 @media (max-width: 768px) {

@@ -15,6 +15,7 @@ import {
 
 type PageProps = {
   searchParams: Promise<{
+    q?: string;
     category?: string;
     badge?: string;
     difficulty?: string;
@@ -23,8 +24,10 @@ type PageProps = {
 
 export default async function ContestsPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const query = params.q?.trim();
 
   const filters = {
+    query: query || undefined,
     category: isContestCategory(params.category) ? params.category : undefined,
     badge: isContestBadge(params.badge) ? params.badge : undefined,
     difficulty: isContestDifficulty(params.difficulty) ? params.difficulty : undefined,
@@ -32,12 +35,13 @@ export default async function ContestsPage({ searchParams }: PageProps) {
 
   const contests = await getContests(filters);
   const spotlight = contests[0];
-  const hasFilters = Boolean(filters.category || filters.badge || filters.difficulty);
+  const hasFilters = Boolean(filters.query || filters.category || filters.badge || filters.difficulty);
   const uniqueCategories = new Set(contests.flatMap((contest) => contest.aiCategories));
   const urgentCount = contests.filter((contest) => contest.badges.includes("deadline_urgent")).length;
   const studentCount = contests.filter((contest) => contest.badges.includes("student_friendly")).length;
 
   const activeSignals = [
+    filters.query ? `"${filters.query}" 검색 결과` : "대회명 / 주최기관 / 기술 스택 검색",
     filters.category
       ? contestCategoryOptions.find((option) => option.id === filters.category)?.label
       : "대학생 포트폴리오 중심",
@@ -56,8 +60,8 @@ export default async function ContestsPage({ searchParams }: PageProps) {
             내 스펙과 일정에 맞는 <span className="gradient-text">AI 공모전만 남겨보세요.</span>
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-[var(--muted)]">
-            한국 대학생과 취준생이 상금, 마감, 기술 스택, 팀 구성을 기준으로 지금 넣을 만한 대회를 빠르게 고르고, 바로
-            우승 전략 리포트까지 읽는 탐색 화면입니다.
+            검색어와 필터를 함께 써서 지금 지원할 만한 대회만 빠르게 좁히고, 바로 우승 전략 리포트까지 이어서 볼 수 있는
+            탐색 화면입니다.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-2">
@@ -91,7 +95,10 @@ export default async function ContestsPage({ searchParams }: PageProps) {
             <>
               <div className="mt-3 flex flex-wrap gap-2">
                 {spotlight.aiCategories.slice(0, 2).map((category) => (
-                  <span key={category} className="badge-pill border-[var(--border)] bg-white text-[var(--foreground)]">
+                  <span
+                    key={category}
+                    className="badge-pill border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]"
+                  >
                     {formatCategory(category)}
                   </span>
                 ))}
@@ -133,7 +140,7 @@ export default async function ContestsPage({ searchParams }: PageProps) {
               </div>
             </>
           ) : (
-            <div className="mt-4 rounded-[28px] border border-[rgba(122,157,221,0.16)] bg-[rgba(255,255,255,0.03)] p-6">
+            <div className="mt-4 rounded-[28px] border border-[rgba(139,164,216,0.18)] bg-[rgba(255,255,255,0.03)] p-6">
               <div className="text-base font-semibold text-[var(--foreground)]">현재 조건에 맞는 대회를 찾지 못했습니다.</div>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                 카테고리나 난도를 풀어 다시 탐색해 보세요. 필터를 비우면 전체 AI 공모전 라인업을 바로 확인할 수 있습니다.
@@ -148,6 +155,7 @@ export default async function ContestsPage({ searchParams }: PageProps) {
 
       <section className="mt-8 grid gap-6 xl:grid-cols-[310px_1fr]">
         <FilterBar
+          searchQuery={filters.query}
           selectedCategory={filters.category}
           selectedBadge={filters.badge}
           selectedDifficulty={filters.difficulty}
@@ -160,7 +168,7 @@ export default async function ContestsPage({ searchParams }: PageProps) {
               <div>
                 <div className="eyebrow">탐색 결과</div>
                 <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                  지금 바로 지원 판단이 가능한 대회만 모았습니다.
+                  {filters.query ? `"${filters.query}"와 맞는 대회만 모았습니다.` : "지금 바로 지원 판단이 가능한 대회만 모았습니다."}
                 </h2>
               </div>
               <div className="text-sm leading-6 text-[var(--muted)]">
@@ -184,10 +192,11 @@ export default async function ContestsPage({ searchParams }: PageProps) {
             <div className="surface-card rounded-[32px] p-8">
               <div className="eyebrow">No Match</div>
               <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                지금 선택한 조건으로는 대회가 없습니다.
+                {filters.query ? `"${filters.query}"와 맞는 대회를 찾지 못했습니다.` : "지금 선택한 조건으로는 대회가 없습니다."}
               </h3>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                카테고리를 넓히거나 난도를 풀면 대학생 포트폴리오용 대회부터 상금형 해커톤까지 다시 추천해 드릴 수 있습니다.
+                검색어를 조금 짧게 바꾸거나 카테고리와 난도를 풀면 대학생 포트폴리오용 대회부터 상금형 해커톤까지 다시 추천해
+                드릴 수 있습니다.
               </p>
               <Link href="/contests" className="secondary-button mt-6">
                 전체 목록으로 돌아가기

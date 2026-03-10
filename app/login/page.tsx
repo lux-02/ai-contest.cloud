@@ -41,7 +41,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           Google로 로그인하면 Saved, Planning, Applied 상태를 남기고 마감 3일 전 reminder도 켤 수 있습니다.
         </p>
 
-        <div className="mt-6 rounded-[22px] border border-[var(--border)] bg-white/80 px-4 py-4 text-sm leading-6 text-[var(--muted)]">
+        <div className="mt-6 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm leading-6 text-[var(--muted)]">
           로그인 후에는 <span className="font-semibold text-[var(--foreground)]">내 활동</span>에서 저장한 대회와 신청 진행 상태를 한 번에 볼 수 있습니다.
         </div>
 

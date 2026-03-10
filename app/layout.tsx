@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Instrument_Serif, Manrope } from "next/font/google";
+import {
+  FaArrowRightFromBracket,
+  FaArrowRightToBracket,
+  FaGear,
+  FaHouse,
+  FaMagnifyingGlass,
+  FaRegBookmark,
+} from "react-icons/fa6";
 
 import { ViewerLogoutButton } from "@/components/auth/viewer-logout-button";
 import { getViewerSession } from "@/lib/server/viewer-auth";
@@ -36,18 +44,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const viewerSession = await getViewerSession();
+  const navButtonBaseClassName =
+    "inline-flex h-10 w-10 items-center justify-center rounded-full px-0 text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--foreground)] sm:h-auto sm:w-auto sm:gap-2 sm:px-4";
+  const navSecondaryClassName = `${navButtonBaseClassName} border border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)] hover:border-[rgba(245,241,232,0.18)] hover:bg-[rgba(255,255,255,0.06)]`;
+  const navPrimaryClassName = `${navButtonBaseClassName} sm:px-3`;
 
   return (
     <html lang="ko" data-scroll-behavior="smooth">
       <body className={`${manrope.variable} ${instrumentSerif.variable} antialiased`}>
         <div className="relative min-h-screen">
-          <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[rgba(247,244,238,0.82)] backdrop-blur-xl">
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-              <Link href="/" className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#111111] p-2 shadow-[0_8px_18px_rgba(17,17,17,0.14)]">
+          <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[rgba(5,6,8,0.82)] backdrop-blur-xl">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+              <Link href="/" className="flex items-center gap-3" aria-label="홈으로 이동">
+                <span className="flex h-10 w-10 items-center justify-center p-1 sm:h-12 sm:w-12 sm:p-0">
                   <Image src="/ai-contest-logo.svg" alt="AI Contest Cloud 로고" width={32} height={36} priority />
                 </span>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-[11px] font-semibold tracking-[0.2em] text-[var(--muted)] md:text-sm">
                     AI CONTEST CLOUD
                   </div>
@@ -55,37 +67,55 @@ export default async function RootLayout({
                 </div>
               </Link>
 
-              <nav className="flex items-center gap-2 text-sm">
-                <Link href="/" className="rounded-full px-3 py-2 text-[var(--muted)] transition hover:bg-black/4 hover:text-[var(--foreground)] md:px-4">
-                  홈
+              <nav className="flex shrink-0 items-center gap-1 text-sm sm:gap-2">
+                <Link
+                  href="/"
+                  aria-label="홈"
+                  title="홈"
+                  className={navPrimaryClassName}
+                >
+                  <FaHouse className="text-[13px] sm:text-[11px]" aria-hidden="true" />
+                  <span className="hidden sm:inline">홈</span>
                 </Link>
                 <Link
                   href="/contests"
-                  className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-[var(--foreground)] transition hover:border-black/14 hover:bg-white md:px-4"
+                  aria-label="탐색"
+                  title="탐색"
+                  className={navSecondaryClassName}
                 >
-                  탐색
+                  <FaMagnifyingGlass className="text-[13px] sm:text-[11px]" aria-hidden="true" />
+                  <span className="hidden sm:inline">탐색</span>
                 </Link>
                 {viewerSession.user ? (
                   <Link
                     href="/my"
-                    className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-[var(--foreground)] transition hover:border-black/14 hover:bg-white md:px-4"
+                    aria-label="내 활동"
+                    title="내 활동"
+                    className={navSecondaryClassName}
                   >
-                    내 활동
+                    <FaRegBookmark className="text-[13px] sm:text-[11px]" aria-hidden="true" />
+                    <span className="hidden sm:inline">내 활동</span>
                   </Link>
                 ) : (
                   <Link
                     href="/login"
-                    className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-[var(--foreground)] transition hover:border-black/14 hover:bg-white md:px-4"
+                    aria-label="로그인"
+                    title="로그인"
+                    className={navSecondaryClassName}
                   >
-                    로그인
+                    <FaArrowRightToBracket className="text-[13px] sm:text-[11px]" aria-hidden="true" />
+                    <span className="hidden sm:inline">로그인</span>
                   </Link>
                 )}
                 {viewerSession.isAdmin ? (
                   <Link
                     href="/admin/contests"
-                    className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-[var(--foreground)] transition hover:border-black/14 hover:bg-white md:px-4"
+                    aria-label="관리"
+                    title="관리"
+                    className={navSecondaryClassName}
                   >
-                    관리
+                    <FaGear className="text-[13px] sm:text-[11px]" aria-hidden="true" />
+                    <span className="hidden sm:inline">관리</span>
                   </Link>
                 ) : null}
                 {viewerSession.user ? <ViewerLogoutButton /> : null}

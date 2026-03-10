@@ -70,7 +70,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
   }
 
   return (
-    <div className="mt-6 rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.72)] p-5 md:p-6">
+    <div className="mt-6 rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5 md:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">브레인스토밍 랩</div>
@@ -93,18 +93,18 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
         <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="rounded-[22px] border border-[var(--border)] bg-white/70 p-4">
-                <div className="h-4 w-32 rounded-full bg-black/5" />
-                <div className="mt-3 h-3 w-full rounded-full bg-black/5" />
-                <div className="mt-2 h-3 w-5/6 rounded-full bg-black/5" />
+              <div key={index} className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
+                <div className="h-4 w-32 rounded-full bg-[rgba(255,255,255,0.08)]" />
+                <div className="mt-3 h-3 w-full rounded-full bg-[rgba(255,255,255,0.08)]" />
+                <div className="mt-2 h-3 w-5/6 rounded-full bg-[rgba(255,255,255,0.08)]" />
               </div>
             ))}
           </div>
-          <div className="rounded-[22px] border border-[var(--border)] bg-white/75 p-5">
-            <div className="h-4 w-40 rounded-full bg-black/5" />
+          <div className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
+            <div className="h-4 w-40 rounded-full bg-[rgba(255,255,255,0.08)]" />
             <div className="mt-4 space-y-2">
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-3 rounded-full bg-black/5" />
+                <div key={index} className="h-3 rounded-full bg-[rgba(255,255,255,0.08)]" />
               ))}
             </div>
           </div>
@@ -113,7 +113,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
 
       {result?.status === "completed" ? (
         <div className="mt-5 space-y-5">
-          <div className="rounded-[24px] border border-[var(--border)] bg-white/85 p-5">
+          <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">추천 방향</div>
             <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{result.overview}</p>
             <div className="mt-4 rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--foreground)]">
@@ -123,13 +123,13 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
 
           <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
             <div className="space-y-4">
-              <div className="rounded-[24px] border border-[var(--border)] bg-white/85 p-5">
+              <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">아이디어 리스트업</div>
                 <div className="mt-4 space-y-3">
                   {result.ideas.map((idea, index) => (
                     <div key={idea.title} className="rounded-[20px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-semibold text-[#090b0f]">
                           {index + 1}
                         </div>
                         <div>
@@ -148,11 +148,11 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-[var(--border)] bg-white/85 p-5">
+              <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">딥 리서치 메모</div>
                 <div className="mt-4 space-y-3">
                   {result.researchPoints.map((point) => (
-                    <div key={point.title} className="rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.7)] p-4">
+                    <div key={point.title} className="rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
                       <div className="text-sm font-semibold text-[var(--foreground)]">{point.title}</div>
                       <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{point.insight}</p>
                       <p className="mt-2 text-xs leading-5 text-[var(--muted)]">실행 액션: {point.action}</p>
@@ -162,7 +162,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-[var(--border)] bg-white/88 p-5 md:p-6">
+            <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5 md:p-6">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">기획 / 전략 초안</div>
               <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">{result.draftTitle}</h3>
               <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{result.draftSubtitle}</p>
@@ -183,13 +183,13 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
           </div>
 
           {result.citations.length > 0 ? (
-            <div className="rounded-[24px] border border-[var(--border)] bg-white/85 p-5">
+            <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">참고한 소스</div>
               <div className="mt-4 space-y-3">
                 {result.citations.map((citation) => (
                   <div key={citation.label} className="rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white">
+                      <span className="rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-[#090b0f]">
                         {citation.label}
                       </span>
                       <div className="text-sm font-semibold text-[var(--foreground)]">{citation.title}</div>

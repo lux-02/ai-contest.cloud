@@ -18,7 +18,7 @@ type AdminLoginFormProps = {
 };
 
 const fieldClassName =
-  "w-full rounded-[18px] border border-[var(--border)] bg-white/90 px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[rgba(15,111,255,0.18)]";
+  "w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.18)] focus:bg-[rgba(255,255,255,0.05)]";
 
 export function AdminLoginForm({ action, nextPath, defaultEmail }: AdminLoginFormProps) {
   const [state, formAction, isPending] = useActionState(action, adminLoginInitialState);

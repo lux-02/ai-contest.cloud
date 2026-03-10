@@ -44,7 +44,7 @@ export default async function AdminContestsPage() {
               원문 링크와 상세 본문을 넣으면 핵심 필드가 먼저 채워지고, 운영자는 아래에서 제목·마감일·카테고리만 검수하면 됩니다.
             </p>
           </div>
-          <div className="rounded-[24px] border border-[var(--border)] bg-white/84 px-5 py-4 text-sm text-[var(--muted)]">
+          <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-5 py-4 text-sm text-[var(--muted)]">
             <div>GPT 자동 분석: {analysisReady ? "ON" : "OFF"}</div>
             <div className="mt-3 flex justify-end">
               <LogoutButton />
@@ -92,7 +92,7 @@ export default async function AdminContestsPage() {
                 return (
                   <div
                     key={contest.id}
-                    className="rounded-[22px] border border-[var(--border)] bg-white/84 p-4 transition hover:border-[rgba(15,111,255,0.18)]"
+                    className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4 transition hover:border-[rgba(245,241,232,0.18)] hover:bg-[rgba(255,255,255,0.04)]"
                   >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -107,7 +107,7 @@ export default async function AdminContestsPage() {
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="badge-pill border-[var(--border)] bg-white/80 text-[var(--foreground)]">
+                    <span className="badge-pill border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]">
                       analysis: {contest.analysis_status ?? "missing"}
                     </span>
                   </div>

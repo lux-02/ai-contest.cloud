@@ -65,8 +65,8 @@ export function ContestTrackingPanel({
                 className={cn(
                   "w-full rounded-[18px] border px-4 py-3 text-sm font-semibold transition",
                   isActive
-                    ? "border-black bg-[#111111] text-white"
-                    : "border-[var(--border)] bg-white text-[var(--foreground)] hover:border-black/14",
+                    ? "border-[rgba(245,241,232,0.18)] bg-[var(--accent)] text-[#090b0f]"
+                    : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)] hover:border-[rgba(245,241,232,0.18)]",
                 )}
               >
                 {option.label}
@@ -91,7 +91,7 @@ export function ContestTrackingPanel({
             "w-full rounded-[18px] border px-4 py-3 text-sm font-semibold transition",
             tracking?.reminderEnabled
               ? "border-[rgba(85,122,87,0.2)] bg-[rgba(85,122,87,0.08)] text-[var(--success)]"
-              : "border-[var(--border)] bg-white text-[var(--foreground)] hover:border-black/14",
+              : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)] hover:border-[rgba(245,241,232,0.18)]",
           )}
         >
           {tracking?.reminderEnabled

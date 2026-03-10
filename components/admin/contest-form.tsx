@@ -20,7 +20,7 @@ const initialState: CreateContestState = {
 };
 
 const fieldClassName =
-  "w-full rounded-[18px] border border-[var(--border)] bg-white/90 px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[rgba(15,111,255,0.18)]";
+  "w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.18)] focus:bg-[rgba(255,255,255,0.05)]";
 
 const sectionHeadingAliases = {
   overview: ["공모 개요", "대회 개요", "모집 개요", "프로그램 개요", "행사 개요", "소개"],
@@ -674,7 +674,7 @@ function PosterPreviewCard({
 
   if (canRenderImage) {
     return (
-      <div className="relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-white">
+      <div className="relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)]">
         <div className="relative aspect-[16/10] w-full">
           <Image
             key={previewUrl}
@@ -692,8 +692,8 @@ function PosterPreviewCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,rgba(15,111,255,0.94),rgba(16,20,24,0.92))] p-5 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_54%)]" />
+    <div className="relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[linear-gradient(135deg,rgba(14,17,21,0.98),rgba(17,24,34,0.96))] p-5 text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,164,216,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_54%)]" />
       <div className="relative flex aspect-[16/10] flex-col justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/72">
@@ -705,11 +705,11 @@ function PosterPreviewCard({
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2 text-xs text-white/88">
-            <div className="rounded-[18px] border border-white/14 bg-white/10 px-3 py-3">
+            <div className="rounded-[18px] border border-white/10 bg-white/6 px-3 py-3">
               <div className="text-[10px] uppercase tracking-[0.14em] text-white/60">Deadline</div>
               <div className="mt-1 text-sm font-semibold">{formatDeadlineLabel(deadline || undefined)}</div>
             </div>
-            <div className="rounded-[18px] border border-white/14 bg-white/10 px-3 py-3">
+            <div className="rounded-[18px] border border-white/10 bg-white/6 px-3 py-3">
               <div className="text-[10px] uppercase tracking-[0.14em] text-white/60">Mode</div>
               <div className="mt-1 text-sm font-semibold">{formatMode(participationMode)}</div>
             </div>
@@ -731,7 +731,7 @@ function QuickFillOverview({
   notes: string[];
 }) {
   return (
-    <div className="rounded-[28px] border border-[var(--border)] bg-white/84 p-5">
+    <div className="rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
       <div className="text-sm font-semibold text-[var(--foreground)]">자동 추출 결과</div>
       <div className="mt-4 space-y-3">
         {preview.map((item) => (
@@ -742,7 +742,7 @@ function QuickFillOverview({
         ))}
       </div>
       {notes.length > 0 ? (
-        <div className="mt-4 rounded-[20px] border border-[var(--border)] bg-white px-4 py-4">
+        <div className="mt-4 rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-4">
           <div className="text-sm font-semibold text-[var(--foreground)]">검수 포인트</div>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted)]">
             {notes.map((note) => (
@@ -1054,7 +1054,7 @@ export function ContestForm({
               참가 조건, 상금 요약, 카테고리까지 먼저 채우고 아래에서 검수만 하면 됩니다.
             </p>
           </div>
-          <div className="rounded-[20px] border border-[var(--border)] bg-white/84 px-4 py-3 text-sm text-[var(--muted)]">
+          <div className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--muted)]">
             Step 1. 붙여 넣기
             <br />
             Step 2. 자동 채우기
@@ -1104,7 +1104,7 @@ export function ContestForm({
             </div>
 
             {quickFillStatus ? (
-              <div className="rounded-[20px] border border-[var(--border)] bg-white/88 px-4 py-3 text-sm leading-6 text-[var(--foreground)]">
+              <div className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]">
                 {quickFillStatus}
               </div>
             ) : null}
@@ -1117,7 +1117,7 @@ export function ContestForm({
       <section className="surface-card rounded-[30px] p-6">
         <div className="eyebrow">필수 검수</div>
         {isEdit ? (
-          <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-white/84 px-4 py-3 text-sm text-[var(--muted)]">
+          <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--muted)]">
             현재 슬러그: <span className="font-semibold text-[var(--foreground)]">{initialData?.slug}</span>
           </div>
         ) : null}
@@ -1260,7 +1260,7 @@ export function ContestForm({
             {contestCategoryOptions.map((category) => (
               <label
                 key={category.id}
-                className="flex items-center gap-3 rounded-[18px] border border-[var(--border)] bg-white/85 px-4 py-3 text-sm text-[var(--foreground)]"
+                className="flex items-center gap-3 rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)]"
               >
                 <input
                   type="checkbox"
@@ -1324,7 +1324,7 @@ export function ContestForm({
               />
             </InputShell>
 
-            <div className="rounded-[24px] border border-[var(--border)] bg-white/72 p-4">
+            <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
               <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                 <label className="block space-y-2">
                   <span className="text-sm font-semibold text-[var(--foreground)]">이미지 파일 업로드</span>
@@ -1341,13 +1341,13 @@ export function ContestForm({
                 </div>
               </div>
               {uploadMessage ? (
-                <div className="mt-3 rounded-[18px] border border-[var(--border)] bg-white/88 px-4 py-3 text-sm text-[var(--foreground)]">
+                <div className="mt-3 rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)]">
                   {uploadMessage}
                 </div>
               ) : null}
             </div>
 
-            <div className="rounded-[22px] border border-[var(--border)] bg-white/84 p-4 text-sm leading-6 text-[var(--muted)]">
+            <div className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4 text-sm leading-6 text-[var(--muted)]">
               {analysisReady
                 ? "OPENAI_API_KEY가 설정되어 있어 저장 시 GPT 분석이 함께 생성됩니다. 실패하거나 pending인 대회는 관리자 화면에서 재실행할 수 있습니다."
                 : "현재는 OPENAI_API_KEY가 없어 대회 저장만 되고, 분석 상태는 pending으로 생성됩니다. 키를 넣으면 같은 구조로 자동 분석까지 바로 붙습니다."}

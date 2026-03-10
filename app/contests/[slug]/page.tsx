@@ -147,7 +147,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          <div className="mt-6 rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.72)] p-6">
+          <div className="mt-6 rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-6">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">공고 내용 정리</div>
             <div className="mt-4 max-h-[320px] overflow-y-auto pr-1">
               <ContentBlocks text={contest.description} />
@@ -161,7 +161,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
             <div className="mt-4">
               <ContestPoster contest={contest} />
             </div>
-            <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
+            <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-4">
               <div className="text-sm font-semibold text-[var(--foreground)]">{formatDeadlineLabel(contest.deadline)}</div>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                 공고 이미지를 먼저 확인하고 바로 신청한 뒤, 아래 리포트에서 심사 포인트와 준비 순서를 읽을 수 있습니다.
@@ -255,7 +255,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
               {contest.aiCategories.map((category) => (
                 <span
                   key={category}
-                  className="badge-pill border-[var(--border)] bg-white text-[var(--foreground)]"
+                  className="badge-pill border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]"
                 >
                   {formatCategory(category)}
                 </span>

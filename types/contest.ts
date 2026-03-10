@@ -143,6 +143,7 @@ export interface ContestStrategyLabResult {
 }
 
 export interface ContestFilters {
+  query?: string;
   category?: ContestCategory;
   badge?: ContestBadge;
   difficulty?: ContestDifficulty;

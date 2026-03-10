@@ -154,7 +154,7 @@ export function InsightPanel({ contest }: InsightPanelProps) {
                 <div className="mt-4 space-y-3">
                   {strategyLines.map((line, index) => (
                     <div key={line} className="report-step">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/6 text-sm font-semibold text-[var(--foreground)]">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-sm font-semibold text-[var(--foreground)]">
                         {index + 1}
                       </div>
                       <p className="text-sm leading-7 text-[var(--foreground)]">{line}</p>
@@ -171,7 +171,7 @@ export function InsightPanel({ contest }: InsightPanelProps) {
                   {stackSignals.map((signal) => (
                     <span
                       key={signal}
-                      className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
+                      className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
                     >
                       {signal}
                     </span>
@@ -185,7 +185,7 @@ export function InsightPanel({ contest }: InsightPanelProps) {
                   {judgingPoints.map((point) => (
                     <span
                       key={point}
-                      className="rounded-full border border-[rgba(122,157,221,0.16)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
+                      className="rounded-full border border-[rgba(139,164,216,0.22)] bg-[rgba(139,164,216,0.1)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
                     >
                       {point}
                     </span>

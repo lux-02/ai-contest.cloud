@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { mockContests } from "@/lib/mock-contests";
 import { getSupabaseClient } from "@/lib/supabase";
-import type { Contest, ContestAnalysis, ContestBadge, ContestFilters } from "@/types/contest";
+import { getCategoryMeta, type Contest, type ContestAnalysis, type ContestBadge, type ContestFilters } from "@/types/contest";
 
 type ContestRow = {
   id: string;
@@ -118,8 +118,49 @@ function mapContestRow(row: ContestRow): Contest {
   };
 }
 
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function compactSearchText(value: string) {
+  return normalizeSearchText(value).replace(/\s+/g, "");
+}
+
+function buildContestSearchIndex(contest: Contest) {
+  return [
+    contest.title,
+    contest.organizer,
+    contest.shortDescription,
+    contest.description,
+    contest.eligibilityText,
+    contest.prizeSummary,
+    contest.submissionFormat,
+    contest.analysis.summary,
+    contest.analysis.recommendReason,
+    contest.analysis.winStrategy,
+    ...contest.tags,
+    ...contest.toolsAllowed,
+    ...contest.aiCategories.map((category) => getCategoryMeta(category).label),
+  ]
+    .filter(Boolean)
+    .join(" \n");
+}
+
 function applyFilters(contests: Contest[], filters: ContestFilters) {
+  const normalizedQuery = filters.query ? normalizeSearchText(filters.query) : "";
+  const compactQuery = normalizedQuery ? compactSearchText(normalizedQuery) : "";
+
   return contests.filter((contest) => {
+    if (normalizedQuery) {
+      const searchIndex = buildContestSearchIndex(contest);
+      const normalizedIndex = normalizeSearchText(searchIndex);
+      const compactIndex = compactSearchText(searchIndex);
+
+      if (!normalizedIndex.includes(normalizedQuery) && !compactIndex.includes(compactQuery)) {
+        return false;
+      }
+    }
+
     if (filters.category && !contest.aiCategories.includes(filters.category)) {
       return false;
     }

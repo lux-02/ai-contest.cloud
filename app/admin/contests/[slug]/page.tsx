@@ -104,7 +104,7 @@ export default async function AdminContestEditPage({ params }: PageProps) {
                   </button>
                 </form>
               ) : (
-                <div className="rounded-[22px] border border-[var(--border)] bg-white/84 px-4 py-3 text-sm text-[var(--muted)]">
+                <div className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--muted)]">
                   API 키가 없으면 분석 재실행은 pending 상태만 유지됩니다.
                 </div>
               )}

@@ -36,13 +36,13 @@ export function ContestCard({ contest }: ContestCardProps) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-[var(--muted)]">{contest.organizer}</span>
-            <span className="h-1 w-1 rounded-full bg-black/18" />
+            <span className="h-1 w-1 rounded-full bg-[rgba(245,241,232,0.2)]" />
             <span className="text-sm text-[var(--muted)]">
               {contest.teamAllowed ? `${contest.minTeamSize}-${contest.maxTeamSize}명 팀` : "개인 참가"}
             </span>
           </div>
 
-          <h3 className="mt-3 max-w-4xl text-[1.85rem] font-semibold tracking-[-0.05em] text-[var(--foreground)] transition group-hover:text-black/72">
+          <h3 className="mt-3 max-w-4xl text-[1.85rem] font-semibold tracking-[-0.05em] text-[var(--foreground)] transition group-hover:text-[var(--accent-strong)]">
             {contest.title}
           </h3>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">{contest.shortDescription}</p>
@@ -53,14 +53,17 @@ export function ContestCard({ contest }: ContestCardProps) {
               <BadgePill key={badge} badge={badge} />
             ))}
             {hiddenBadgeCount > 0 ? (
-              <span className="badge-pill border-[var(--border)] bg-white text-[var(--muted)]">+{hiddenBadgeCount}</span>
+              <span className="badge-pill border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--muted)]">+{hiddenBadgeCount}</span>
             ) : null}
           </div>
 
           <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border)] pt-4 md:flex-row md:items-end md:justify-between">
             <div className="flex flex-wrap gap-2 text-xs font-medium text-[var(--muted)]">
               {contest.aiCategories.map((category) => (
-                <span key={category} className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[var(--foreground)]">
+                <span
+                  key={category}
+                  className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[var(--foreground)]"
+                >
                   {formatCategory(category)}
                 </span>
               ))}
