@@ -2,8 +2,17 @@ name: Update README Lineup
 
 on:
   schedule:
-    - cron: "5 0 * * *"
+    - cron: "5 */3 * * *"
   workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this refresh was requested"
+        required: false
+        type: string
+      slug:
+        description: "Contest slug related to the refresh"
+        required: false
+        type: string
 
 permissions:
   contents: write

@@ -25,6 +25,7 @@ import {
 } from "@/lib/server/contest-analysis";
 import { assertAdminAction } from "@/lib/server/admin-auth";
 import { getDbPool } from "@/lib/server/db";
+import { triggerGitHubContentRefresh } from "@/lib/server/github-content-refresh";
 
 export type CreateContestState = {
   status: "idle" | "success" | "error";
@@ -768,6 +769,25 @@ function revalidateContestPaths(slug?: string) {
   }
 }
 
+async function triggerContentRefreshForPublishedContest(options: {
+  previousStatus?: ContestStatus;
+  nextStatus?: ContestStatus;
+  slug?: string;
+  reason: "contest_created" | "contest_updated" | "contest_deleted";
+}) {
+  const shouldTrigger =
+    options.previousStatus === "published" || options.nextStatus === "published";
+
+  if (!shouldTrigger) {
+    return;
+  }
+
+  await triggerGitHubContentRefresh({
+    slug: options.slug,
+    reason: options.reason,
+  });
+}
+
 export async function createContestAction(
   _previousState: CreateContestState,
   formData: FormData,
@@ -802,6 +822,11 @@ export async function createContestAction(
     }
 
     revalidateContestPaths(createdSlug);
+    await triggerContentRefreshForPublishedContest({
+      nextStatus: draft.status,
+      slug: createdSlug,
+      reason: "contest_created",
+    });
 
     return {
       status: "success",
@@ -853,6 +878,12 @@ export async function updateContestAction(
     const updatedSlug = await updateContest(contestId, draft, analysis);
 
     revalidateContestPaths(updatedSlug);
+    await triggerContentRefreshForPublishedContest({
+      previousStatus: existing.status,
+      nextStatus: draft.status,
+      slug: updatedSlug,
+      reason: "contest_updated",
+    });
 
     return {
       status: "success",
@@ -901,6 +932,11 @@ export async function deleteContestAction(contestId: string) {
 
   await pool.query("delete from public.contests where id = $1", [contestId]);
   revalidateContestPaths(existing.slug);
+  await triggerContentRefreshForPublishedContest({
+    previousStatus: existing.status,
+    slug: existing.slug,
+    reason: "contest_deleted",
+  });
   redirect("/admin/contests");
 }
 

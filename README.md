@@ -127,9 +127,21 @@ If the private backend is unavailable, it falls back to the local in-repo pipeli
 
 ## GitHub Actions
 
-This repo includes a daily GitHub Actions workflow that refreshes the `Current Contest Lineup` section in `README.md` and also regenerates [`data/contests.json`](/Users/lux/Documents/ai-contest.cloud/data/contests.json).
+This repo includes a GitHub Actions workflow that refreshes the `Current Contest Lineup` section in `README.md` and also regenerates [`data/contests.json`](/Users/lux/Documents/ai-contest.cloud/data/contests.json).
+
+- Scheduled refresh: every 3 hours
+- Immediate refresh: triggered when an admin creates, updates, or deletes a `published` contest
+- Excluded from immediate refresh: view count and apply count updates
 
 Set these repository secrets before enabling the workflow:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+Set these app env vars if you want admin actions to trigger the GitHub workflow immediately:
+
+- `GITHUB_CONTENT_REFRESH_TOKEN`
+- `GITHUB_CONTENT_REFRESH_OWNER`
+- `GITHUB_CONTENT_REFRESH_REPO`
+- `GITHUB_CONTENT_REFRESH_WORKFLOW_ID`
+- `GITHUB_CONTENT_REFRESH_REF`
