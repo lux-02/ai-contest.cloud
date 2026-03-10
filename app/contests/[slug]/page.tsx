@@ -2,15 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BadgePill } from "@/components/badge-pill";
+import { ContestHeroActions } from "@/components/contest-hero-actions";
 import { ContestPoster } from "@/components/contest-poster";
-import { ContestTrackingPanel } from "@/components/contest-tracking-panel";
 import { InsightPanel } from "@/components/insight-panel";
+import { JudgingCriteriaChart } from "@/components/judging-criteria-chart";
 import { getContestBySlug } from "@/lib/queries";
 import { registerContestView } from "@/lib/server/contest-metrics";
 import { getContestTrackingState } from "@/lib/server/contest-tracking";
 import { getViewerSession } from "@/lib/server/viewer-auth";
 import {
-  formatCompactNumber,
   formatCategory,
   formatCurrency,
   formatDate,
@@ -101,7 +101,17 @@ export default async function ContestDetailPage({ params }: PageProps) {
     <main className="mx-auto max-w-7xl px-6 pb-20 pt-10">
       <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="surface-card rounded-[34px] p-8 md:p-10">
-          <div className="eyebrow">대회 브리프</div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="eyebrow">대회 브리프</div>
+            <ContestHeroActions
+              contestId={contestMetrics.id}
+              slug={contestMetrics.slug}
+              tracking={trackingState}
+              isLoggedIn={Boolean(viewerSession.user)}
+              viewCount={contestMetrics.viewCount}
+              applyCount={contestMetrics.applyCount}
+            />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {contestMetrics.aiCategories.map((category) => (
               <span key={category} className="signal-chip">
@@ -135,7 +145,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="report-card">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">주최 성격</div>
               <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{formatOrganizerTrust(contestMetrics)}</div>
@@ -143,14 +153,6 @@ export default async function ContestDetailPage({ params }: PageProps) {
             <div className="report-card">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">참가 방식</div>
               <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{formatTeamValue(contestMetrics)}</div>
-            </div>
-            <div className="report-card">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">조회수</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{formatCompactNumber(contestMetrics.viewCount)}</div>
-            </div>
-            <div className="report-card">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">지원 클릭</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{formatCompactNumber(contestMetrics.applyCount)}</div>
             </div>
           </div>
 
@@ -199,33 +201,14 @@ export default async function ContestDetailPage({ params }: PageProps) {
             <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-4">
               <div className="text-sm font-semibold text-[var(--foreground)]">{formatDeadlineLabel(contestMetrics.deadline)}</div>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                공고 이미지를 먼저 확인하고 바로 신청한 뒤, 심사 기준과 접수 항목을 바로 체크할 수 있게 정리했습니다.
+                공고 이미지를 확인한 뒤 바로 신청하고, 아래에서 심사 기준과 접수 항목을 이어서 보면 됩니다.
               </p>
             </div>
-            <div className="mt-5 grid gap-3">
-              <Link
-                href={`/contests/${contestMetrics.slug}/apply`}
-                className="primary-button w-full"
-              >
+            <div className="mt-5">
+              <Link href={`/contests/${contestMetrics.slug}/apply`} className="primary-button w-full">
                 공모전 신청하기
               </Link>
-              <div className="flex flex-wrap gap-3">
-                <Link href={contestMetrics.url} target="_blank" rel="noreferrer" className="secondary-button flex-1">
-                  원문 공고 보기
-                </Link>
-                {contestMetrics.sourceUrl ? (
-                  <Link href={contestMetrics.sourceUrl} target="_blank" rel="noreferrer" className="secondary-button flex-1">
-                    수집 소스 보기
-                  </Link>
-                ) : null}
-              </div>
             </div>
-            <ContestTrackingPanel
-              contestId={contestMetrics.id}
-              slug={contestMetrics.slug}
-              tracking={trackingState}
-              isLoggedIn={Boolean(viewerSession.user)}
-            />
           </aside>
 
           <aside className="surface-card rounded-[34px] p-8">
@@ -311,27 +294,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
             </div>
             <div>
               <div className="insight-label">심사 기준</div>
-              {contestMetrics.judgingCriteria?.length ? (
-                <div className="mt-3 space-y-3">
-                  {contestMetrics.judgingCriteria.map((criterion) => (
-                    <div key={`${criterion.label}-${criterion.weight ?? "none"}`} className="rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-[var(--foreground)]">{criterion.label}</div>
-                        {criterion.weight ? (
-                          <div className="rounded-full border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--foreground)]">
-                            {criterion.weight}%
-                          </div>
-                        ) : null}
-                      </div>
-                      {criterion.description ? (
-                        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{criterion.description}</p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm leading-6 text-[var(--muted)]">심사 기준 정보 미정</p>
-              )}
+              <JudgingCriteriaChart criteria={contestMetrics.judgingCriteria ?? []} />
             </div>
             {contestMetrics.pastWinners ? (
               <div>
@@ -358,29 +321,6 @@ export default async function ContestDetailPage({ params }: PageProps) {
               ))}
             </div>
             <p className="mt-5 text-sm leading-6 text-[var(--muted)]">{contestMetrics.tags.join(" · ")}</p>
-          </div>
-
-          <div className="surface-card rounded-[32px] p-7">
-            <div className="eyebrow">주요 도구 / 스택</div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {contestMetrics.toolsAllowed.map((tool) => (
-                <span
-                  key={tool}
-                  className="badge-pill border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]"
-                >
-                  {tool}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="surface-card rounded-[32px] p-7">
-            <div className="eyebrow">인기 지표</div>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--foreground)]">
-              <li>현재 조회수 {formatCompactNumber(contestMetrics.viewCount)}회 · 신청 클릭 {formatCompactNumber(contestMetrics.applyCount)}회</li>
-              <li>마감이 가까워질수록 조회수와 신청 클릭이 빠르게 올라갈 수 있습니다.</li>
-              <li>인기순 정렬에서는 실제 조회/신청 반응을 함께 반영합니다.</li>
-            </ul>
           </div>
         </div>
       </section>

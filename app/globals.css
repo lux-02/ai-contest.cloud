@@ -268,6 +268,121 @@ a {
   padding: 0.95rem 1rem;
 }
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.metric-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.58rem 0.78rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.hero-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.55rem;
+  width: 2.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.hero-action-button:hover {
+  border-color: rgba(245, 241, 232, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  transform: translateY(-1px);
+}
+
+.hero-action-button.is-active {
+  border-color: rgba(245, 241, 232, 0.18);
+  background: rgba(245, 241, 232, 0.12);
+  color: var(--foreground);
+}
+
+.hero-action-button.is-reminder {
+  color: var(--success);
+  border-color: rgba(136, 209, 171, 0.22);
+  background: rgba(136, 209, 171, 0.08);
+}
+
+.judging-bar {
+  position: relative;
+  overflow: hidden;
+  height: 0.7rem;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.judging-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(245, 241, 232, 0.28), rgba(245, 241, 232, 0.9));
+}
+
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(3, 4, 6, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+.login-modal-panel {
+  width: min(100%, 28rem);
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: rgba(14, 17, 21, 0.96);
+  padding: 1.5rem;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .poster-shell {
   position: relative;
   overflow: hidden;

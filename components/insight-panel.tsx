@@ -1,5 +1,5 @@
 import { StrategyLabPanel } from "@/components/strategy-lab-panel";
-import { formatCategory, formatDifficulty, getDaysUntil } from "@/lib/utils";
+import { getDaysUntil } from "@/lib/utils";
 import type { Contest } from "@/types/contest";
 
 interface InsightPanelProps {
@@ -13,25 +13,20 @@ function splitReportLines(text: string) {
     .filter(Boolean);
 }
 
-function splitJudgingFocus(text: string) {
-  return text
-    .split(/,|\n/)
-    .map((item) => item.trim())
+function summarizeSubmissionItems(contest: Contest) {
+  const items = (contest.submissionItems ?? [])
+    .map((item) => item.replace(/^•\s*/, "").trim())
     .filter(Boolean);
-}
 
-function buildJudgingPoints(contest: Contest) {
-  if (contest.judgingCriteria?.length) {
-    return contest.judgingCriteria.map((criterion) =>
-      criterion.weight ? `${criterion.label} ${criterion.weight}%` : criterion.label,
-    );
+  if (items.length === 0) {
+    return null;
   }
 
-  return splitJudgingFocus(contest.analysis.judgingFocus);
-}
+  if (items.length === 1) {
+    return items[0];
+  }
 
-function buildStackSignals(contest: Contest) {
-  return Array.from(new Set([...contest.toolsAllowed, ...contest.aiCategories.map(formatCategory), ...contest.tags])).slice(0, 6);
+  return `${items.length}개 항목`;
 }
 
 function buildChecklist(contest: Contest) {
@@ -54,8 +49,10 @@ function buildChecklist(contest: Contest) {
     baseItems.push("제공 자료와 데이터셋의 사용 범위, 저작권 조건, 평가 기준을 먼저 읽기");
   }
 
-  if (contest.submissionItems?.length) {
-    baseItems.push(`접수 항목 ${contest.submissionItems.slice(0, 2).join(", ")}를 미리 준비하기`);
+  const submissionItemSummary = summarizeSubmissionItems(contest);
+
+  if (submissionItemSummary) {
+    baseItems.push(`접수 항목과 필수 증빙을 미리 체크리스트로 정리하기 (${submissionItemSummary})`);
   }
 
   if ((getDaysUntil(contest.deadline) ?? 99) <= 7) {
@@ -67,6 +64,21 @@ function buildChecklist(contest: Contest) {
   }
 
   return Array.from(new Set(baseItems)).slice(0, 5);
+}
+
+function buildExecutionPlan(contest: Contest) {
+  return Array.from(new Set([...splitReportLines(contest.analysis.winStrategy), ...buildChecklist(contest)])).slice(0, 6);
+}
+
+function buildSignalSummary(contest: Contest) {
+  if (contest.judgingCriteria?.length) {
+    return contest.judgingCriteria
+      .slice(0, 3)
+      .map((criterion) => (criterion.weight ? `${criterion.label} ${criterion.weight}%` : criterion.label))
+      .join(" · ");
+  }
+
+  return contest.analysis.judgingFocus;
 }
 
 function StatusNotice({ contest }: { contest: Contest }) {
@@ -97,42 +109,19 @@ function StatusNotice({ contest }: { contest: Contest }) {
 
 export function InsightPanel({ contest }: InsightPanelProps) {
   const { analysis } = contest;
-  const strategyLines = splitReportLines(analysis.winStrategy);
-  const judgingPoints = buildJudgingPoints(contest);
-  const stackSignals = buildStackSignals(contest);
-  const checklist = buildChecklist(contest);
+  const executionPlan = buildExecutionPlan(contest);
+  const signalSummary = buildSignalSummary(contest);
 
   return (
     <section className="surface-card rounded-[32px] p-7 md:p-8">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="max-w-3xl">
-          <div className="eyebrow">AI 전략 리포트</div>
-          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
-            공고를 읽기 전에, 상위권 전략부터 먼저 봅니다.
-          </h2>
-          <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-            이 리포트는 추천 이유, 심사 포인트, 준비 순서를 한 번에 정리한 전략 요약본입니다. 대학생 팀이 바로 실행으로 옮길 수
-            있게 체크리스트까지 같이 붙였습니다.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[360px] xl:grid-cols-1">
-          <div className="report-card">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">난도</div>
-            <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{formatDifficulty(contest.difficulty)}</div>
-          </div>
-          <div className="report-card">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">팀 구성</div>
-            <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">
-              {contest.teamAllowed ? `${contest.minTeamSize}-${contest.maxTeamSize}명 팀 참가` : "개인 참가"}
-            </div>
-          </div>
-          <div className="report-card">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">언어 / 리포트</div>
-            <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">
-              {contest.language} · {analysis.modelName ?? "GPT"}
-            </div>
-          </div>
-        </div>
+      <div className="max-w-3xl">
+        <div className="eyebrow">AI 전략 리포트</div>
+        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
+          공고와 심사 기준을 기준으로, 바로 실행할 플랜만 추렸습니다.
+        </h2>
+        <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+          공고 정보와 겹치는 설명은 빼고, 상위권에 가까워지는 실행 순서만 간단하게 정리했습니다.
+        </p>
       </div>
 
       {analysis.analysisStatus !== "completed" ? (
@@ -144,85 +133,31 @@ export function InsightPanel({ contest }: InsightPanelProps) {
         </>
       ) : (
         <>
-          <div className="mt-6 grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-            <div className="space-y-5">
-              <div className="insight-card">
-                <div className="insight-label">핵심 요약</div>
-                <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{analysis.summary}</p>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="insight-card">
-                  <div className="insight-label">왜 이 대회인가</div>
-                  <p className="mt-3 text-sm leading-7 text-[var(--foreground)]">{analysis.recommendReason}</p>
-                </div>
-
-                <div className="insight-card">
-                  <div className="insight-label">난도 해석</div>
-                  <p className="mt-3 text-sm leading-7 text-[var(--foreground)]">{analysis.difficultyAnalysis}</p>
-                </div>
-              </div>
-
-              <div className="insight-card">
-                <div className="insight-label">상위권 전략</div>
-                <div className="mt-4 space-y-3">
-                  {strategyLines.map((line, index) => (
-                    <div key={line} className="report-step">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-sm font-semibold text-[var(--foreground)]">
-                        {index + 1}
-                      </div>
-                      <p className="text-sm leading-7 text-[var(--foreground)]">{line}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="mt-6 space-y-5">
+            <div className="insight-card">
+              <div className="insight-label">핵심 메모</div>
+              <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{analysis.recommendReason}</p>
+              <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{analysis.summary}</p>
+              {signalSummary ? (
+                <p className="mt-4 text-xs leading-6 text-[var(--muted)]">심사 기준 포인트: {signalSummary}</p>
+              ) : null}
             </div>
 
-            <div className="space-y-5">
-              <div className="insight-card">
-                <div className="insight-label">추천 기술 스택</div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {stackSignals.map((signal) => (
-                    <span
-                      key={signal}
-                      className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
-                    >
-                      {signal}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="insight-card">
-                <div className="insight-label">심사 포인트</div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {judgingPoints.map((point) => (
-                    <span
-                      key={point}
-                      className="rounded-full border border-[rgba(139,164,216,0.22)] bg-[rgba(139,164,216,0.1)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]"
-                    >
-                      {point}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs leading-6 text-[var(--muted)]">
-                  Generated by {analysis.modelName ?? "GPT"} · prompt {analysis.promptVersion ?? "contest-v1"}
-                </p>
-              </div>
-
-              <div className="insight-card">
-                <div className="insight-label">지원 전 체크리스트</div>
-                <div className="mt-4 space-y-3">
-                  {checklist.map((item) => (
-                    <div key={item} className="report-step">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(88,239,191,0.12)] text-sm font-semibold text-[var(--success)]">
-                        ✓
-                      </div>
-                      <p className="text-sm leading-7 text-[var(--foreground)]">{item}</p>
+            <div className="insight-card">
+              <div className="insight-label">상위권 실행 플랜</div>
+              <div className="mt-4 space-y-3">
+                {executionPlan.map((item, index) => (
+                  <div key={item} className="report-step">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-sm font-semibold text-[var(--foreground)]">
+                      {index + 1}
                     </div>
-                  ))}
-                </div>
+                    <p className="text-sm leading-7 text-[var(--foreground)]">{item}</p>
+                  </div>
+                ))}
               </div>
+              <p className="mt-4 text-xs leading-6 text-[var(--muted)]">
+                Generated by {analysis.modelName ?? "GPT"} · prompt {analysis.promptVersion ?? "contest-v1"}
+              </p>
             </div>
           </div>
 

@@ -177,7 +177,7 @@ export function FilterBar({
 
           <div className="space-y-3">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">AI 분야</div>
-            <div className="-mx-1 overflow-x-auto pb-1">
+            <div className="scrollbar-hidden -mx-1 overflow-x-auto pb-1">
               <div className="flex min-w-max gap-2 px-1">
                 <FilterChip
                   href={buildHref({

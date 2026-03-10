@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useState, useTransition } from "react";
+import { FaSpinner } from "react-icons/fa6";
 
 import type { ContestStrategyLabResult } from "@/types/contest";
 
@@ -31,6 +32,10 @@ function formatSourceType(sourceType: string) {
   }
 
   return sourceType;
+}
+
+function stripCitationMarkers(text: string) {
+  return text.replace(/\s*\[S\d+\]/g, "").trim();
 }
 
 export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
@@ -80,11 +85,22 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">브레인스토밍 랩</div>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            공고와 전략 리포트를 바탕으로 아이디어 리스트, 딥 리서치 메모, 기획/전략 초안을 한 번에 생성합니다.
+            공고 내용, 심사 기준, 접수 항목을 바탕으로 아이디어 리스트와 전략 초안을 한 번에 생성합니다.
           </p>
         </div>
         <button type="button" className="secondary-button" onClick={handleGenerate} disabled={isPending}>
-          {isPending ? "생성 중..." : ideaInput.trim() ? "아이디어 맞춤 초안 만들기" : result ? "다시 브레인스토밍" : "브레인스토밍"}
+          {isPending ? (
+            <>
+              <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              생성 중...
+            </>
+          ) : ideaInput.trim() ? (
+            "아이디어 맞춤 초안 만들기"
+          ) : result ? (
+            "다시 브레인스토밍"
+          ) : (
+            "브레인스토밍"
+          )}
         </button>
       </div>
 
@@ -93,7 +109,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
           내 아이디어 초안
         </label>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          한 줄 아이디어나 방향만 적어도 됩니다. 심사 기준과 준비 항목에 맞춰 더 설득력 있는 전략 초안으로 다시 정리합니다.
+          한 줄 아이디어만 적어도 됩니다. 공고의 심사 기준과 제출 요건에 맞춰 더 설득력 있는 전략 초안으로 다시 정리합니다.
         </p>
         <textarea
           id={`strategy-idea-${slug}`}
@@ -116,17 +132,17 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
-                <div className="h-4 w-32 rounded-full bg-[rgba(255,255,255,0.08)]" />
-                <div className="mt-3 h-3 w-full rounded-full bg-[rgba(255,255,255,0.08)]" />
-                <div className="mt-2 h-3 w-5/6 rounded-full bg-[rgba(255,255,255,0.08)]" />
+                <div className="skeleton-shimmer h-4 w-32 rounded-full" />
+                <div className="skeleton-shimmer mt-3 h-3 w-full rounded-full" />
+                <div className="skeleton-shimmer mt-2 h-3 w-5/6 rounded-full" />
               </div>
             ))}
           </div>
           <div className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
-            <div className="h-4 w-40 rounded-full bg-[rgba(255,255,255,0.08)]" />
+            <div className="skeleton-shimmer h-4 w-40 rounded-full" />
             <div className="mt-4 space-y-2">
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-3 rounded-full bg-[rgba(255,255,255,0.08)]" />
+                <div key={index} className="skeleton-shimmer h-3 rounded-full" />
               ))}
             </div>
           </div>
@@ -142,9 +158,9 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
                 입력한 아이디어: {lastIdea}
               </div>
             ) : null}
-            <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{result.overview}</p>
+            <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{stripCitationMarkers(result.overview)}</p>
             <div className="mt-4 rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--foreground)]">
-              추천 콘셉트: {result.recommendedDirection}
+              추천 콘셉트: {stripCitationMarkers(result.recommendedDirection)}
             </div>
           </div>
 
@@ -161,12 +177,12 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
                         </div>
                         <div>
                           <div className="text-sm font-semibold text-[var(--foreground)]">{idea.title}</div>
-                          <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{idea.concept}</p>
+                          <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{stripCitationMarkers(idea.concept)}</p>
                           <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
-                            상위권 포인트: {idea.winningEdge}
+                            상위권 포인트: {stripCitationMarkers(idea.winningEdge)}
                           </p>
                           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                            실행 포커스: {idea.executionFocus}
+                            실행 포커스: {stripCitationMarkers(idea.executionFocus)}
                           </p>
                         </div>
                       </div>
@@ -181,8 +197,8 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
                   {result.researchPoints.map((point) => (
                     <div key={point.title} className="rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
                       <div className="text-sm font-semibold text-[var(--foreground)]">{point.title}</div>
-                      <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{point.insight}</p>
-                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">실행 액션: {point.action}</p>
+                      <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{stripCitationMarkers(point.insight)}</p>
+                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">실행 액션: {stripCitationMarkers(point.action)}</p>
                     </div>
                   ))}
                 </div>
@@ -192,49 +208,43 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
             <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5 md:p-6">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">기획 / 전략 초안</div>
               <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">{result.draftTitle}</h3>
-              <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{result.draftSubtitle}</p>
+              <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{stripCitationMarkers(result.draftSubtitle)}</p>
 
               <div className="mt-6 space-y-5">
                 {result.draftSections.map((section) => (
                   <section key={section.title} className="border-t border-[var(--border)] pt-5 first:border-none first:pt-0">
                     <div className="text-sm font-semibold text-[var(--foreground)]">{section.title}</div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground)]">{section.body}</p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground)]">
+                      {stripCitationMarkers(section.body)}
+                    </p>
                   </section>
                 ))}
               </div>
 
-              <div className="mt-6 rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-xs leading-5 text-[var(--muted)]">
-                {title} 공고와 AI 전략 리포트를 바탕으로 정리한 초안입니다. 실제 제출 전에는 팀 구성, 자료 수급, 저작권 조건을 다시 확인하는 편이 안전합니다.
-              </div>
+              <p className="mt-6 text-xs leading-5 text-[var(--muted)]">
+                {title} 공고와 심사 기준, 접수 항목을 바탕으로 정리한 초안입니다. 실제 제출 전에는 팀 구성, 자료 수급, 저작권 조건을 다시
+                확인하는 편이 안전합니다.
+              </p>
             </div>
           </div>
 
           {result.citations.length > 0 ? (
-            <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
+            <div className="pt-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">참고한 소스</div>
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 space-y-2">
                 {result.citations.map((citation) => (
-                  <div key={citation.label} className="rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-semibold text-[#090b0f]">
-                        {citation.label}
-                      </span>
-                      <div className="text-sm font-semibold text-[var(--foreground)]">{citation.title}</div>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">{citation.snippet}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                      <span>{formatSourceType(citation.sourceType)}</span>
-                      {typeof citation.rankingScore === "number" ? <span>랭킹 {citation.rankingScore.toFixed(2)}</span> : null}
-                      {typeof citation.citationScore === "number" ? (
-                        <span>인용 적합도 {citation.citationScore.toFixed(2)}</span>
-                      ) : null}
-                      {citation.searchQuery ? <span>검색어: {citation.searchQuery}</span> : null}
-                      {citation.url ? (
+                  <div key={`${citation.title}-${citation.url ?? citation.label}`} className="text-xs leading-5 text-[var(--muted)]">
+                    <span>{citation.title}</span>
+                    <span> · {formatSourceType(citation.sourceType)}</span>
+                    {citation.searchQuery ? <span> · 검색어 {citation.searchQuery}</span> : null}
+                    {citation.url ? (
+                      <>
+                        {" · "}
                         <a href={citation.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                          원문 보기
+                          원문
                         </a>
-                      ) : null}
-                    </div>
+                      </>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -3,7 +3,7 @@ import "server-only";
 import type { Contest, ContestStrategyLabResult } from "@/types/contest";
 import type { CollectedStrategySource } from "@/lib/server/contest-source-collector";
 
-const contestStrategyLabPromptVersion = "contest-strategy-lab-v4";
+const contestStrategyLabPromptVersion = "contest-strategy-lab-v5";
 const STRATEGY_LAB_TIMEOUT_MS = 25000;
 const PROMPT_CONTEST_DESCRIPTION_LIMIT = 1500;
 const PROMPT_SOURCE_CONTENT_LIMIT = 1200;
@@ -59,18 +59,6 @@ function buildCitations(sources: CollectedStrategySource[]) {
       citationScore: source.citationScore,
       selectedForCitation: source.selectedForCitation,
     }));
-}
-
-function hasCitationLabel(text: string) {
-  return /\[S\d+\]/.test(text);
-}
-
-function attachFallbackCitation(text: string, fallbackLabel?: string) {
-  if (!fallbackLabel || !text.trim() || hasCitationLabel(text)) {
-    return text;
-  }
-
-  return `${text.trim()} [${fallbackLabel}]`;
 }
 
 function summarizeContestForPrompt(contest: Contest) {
@@ -136,13 +124,12 @@ function getStrategyLabPrompt(contest: Contest, sources: CollectedStrategySource
     "Generate a practical Korean brainstorming pack for this contest.",
     "All string values in the JSON must be written in Korean.",
     "Use Korean even when the contest brand name is in English.",
-    "Base your reasoning only on the contest data and existing AI analysis provided.",
+    "Base your reasoning only on the contest data, judging criteria, submission items, and existing AI analysis provided.",
     "When submissionItems or judgingCriteria exist, reflect them directly in the planning advice and draft.",
     userIdea
       ? "The user already has a draft idea. Strengthen it to fit the judging criteria, submission requirements, and winning patterns instead of ignoring it."
       : "If there is no user idea, propose the most competitive directions from scratch.",
-    "When a sentence relies on a collected source, append the source labels such as [S1] or [S2].",
-    "Use only the provided source labels. Do not invent new labels.",
+    "Use the collected sources only as supporting context. Do not print source labels in the generated text.",
     "Do not claim that you researched anything beyond the provided sources.",
     "Keep every item actionable and specific enough to use in a planning meeting.",
     "",
@@ -264,7 +251,7 @@ export async function generateContestStrategyLab(
           {
             role: "system",
             content:
-              "You create Korean brainstorming packs for AI contests. Every field value must be in Korean. Cite provided source labels like [S1] in your sentences when relevant.",
+              "You create Korean brainstorming packs for AI contests. Every field value must be in Korean. Use the supplied contest brief, judging criteria, and submission requirements directly, but do not print source labels in the generated text.",
           },
           {
             role: "user",
@@ -291,20 +278,9 @@ export async function generateContestStrategyLab(
 
   try {
     const parsed = JSON.parse(content) as Omit<ContestStrategyLabResult, "status" | "modelName" | "citations">;
-    const fallbackLabel = citations[0]?.label;
 
     return {
       ...parsed,
-      overview: attachFallbackCitation(parsed.overview, fallbackLabel),
-      researchPoints: parsed.researchPoints.map((point) => ({
-        ...point,
-        insight: attachFallbackCitation(point.insight, fallbackLabel),
-        action: attachFallbackCitation(point.action, fallbackLabel),
-      })),
-      draftSections: parsed.draftSections.map((section) => ({
-        ...section,
-        body: attachFallbackCitation(section.body, fallbackLabel),
-      })),
       citations,
       promptVersion: contestStrategyLabPromptVersion,
       modelName: model,
