@@ -59,10 +59,10 @@ export const contestIdeationStatusOptions = [
 
 export const contestIdeationStageOptions = [
   { id: "strategy", label: "전략 분석" },
-  { id: "why", label: "Why" },
-  { id: "how", label: "How" },
-  { id: "what", label: "What" },
-  { id: "matrix", label: "Decision Matrix" },
+  { id: "why", label: "방향 잡기" },
+  { id: "how", label: "추천 방향" },
+  { id: "what", label: "아이디어 뽑기" },
+  { id: "matrix", label: "최종 선택" },
   { id: "selected", label: "아이디어 확정" },
 ] as const;
 

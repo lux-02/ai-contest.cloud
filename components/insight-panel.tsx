@@ -47,14 +47,30 @@ function buildExecutionPlan(contest: Contest) {
 
 function buildStrategyCtaLabel(session: ContestIdeationSession | null) {
   if (!session) {
-    return "이 전략 기반으로 아이디어 brainstorm 해볼까요?";
+    return "이 전략 기반으로 아이디어 뽑아보기";
   }
 
   if (session.status === "selected") {
-    return "확정한 아이디어와 Matrix 다시 보기";
+    return "확정한 아이디어 다시 보기";
   }
 
-  return "이전 브레인스토밍 이어서 보기";
+  return "이전 작업 이어서 보기";
+}
+
+function buildSessionStatusLabel(session: ContestIdeationSession) {
+  if (session.status === "selected") {
+    return "아이디어 확정 완료";
+  }
+
+  if (session.currentStage === "what") {
+    return "아이디어 뽑기 진행 중";
+  }
+
+  if (session.currentStage === "matrix") {
+    return "최종 선택 직전";
+  }
+
+  return "꿈꾸기 진행 중";
 }
 
 function StatusNotice({ contest }: { contest: Contest }) {
@@ -130,30 +146,18 @@ export function InsightPanel({ contest, ideationSession, isLoggedIn, isOpening, 
           <div className="rounded-[26px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-6">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">다음 단계</div>
             <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-              전략을 읽었다면, 이제 Why → How → What → Matrix 순서로 아이디어를 좁히면 됩니다.
+              전략을 읽었다면, 이제 3단계로 빠르게 아이디어를 정하면 됩니다.
             </h3>
             <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
               {isLoggedIn
-                ? "선택지 3개에서 WHY를 고르고, 영향 가설을 세운 뒤, 아이디어 후보를 Matrix로 객관적으로 추릴 수 있습니다."
-                : "로그인 후 브레인스토밍을 시작하면 단계별 draft가 자동 저장되고, 나중에 이어서 볼 수 있습니다."}
+                ? "꿈꾸기에서 방향을 고르고, 아이디어 후보를 본 뒤, 최종 추천 순위에서 하나만 고르면 됩니다."
+                : "로그인 후 시작하면 진행 상태가 자동 저장되고, 다음에 다시 와도 이어서 볼 수 있습니다."}
             </p>
 
             {ideationSession ? (
               <div className="mt-5 rounded-[20px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">현재 저장 상태</div>
-                <div className="mt-3 text-sm font-semibold text-[var(--foreground)]">
-                  {ideationSession.status === "selected"
-                    ? "아이디어 확정 완료"
-                    : `현재 단계: ${ideationSession.currentStage === "why"
-                        ? "Why"
-                        : ideationSession.currentStage === "how"
-                          ? "How"
-                          : ideationSession.currentStage === "what"
-                            ? "What"
-                            : ideationSession.currentStage === "matrix"
-                              ? "Decision Matrix"
-                              : "전략 분석"}`}
-                </div>
+                <div className="mt-3 text-sm font-semibold text-[var(--foreground)]">{buildSessionStatusLabel(ideationSession)}</div>
                 {ideationSession.matrixSummary ? (
                   <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ideationSession.matrixSummary}</p>
                 ) : null}

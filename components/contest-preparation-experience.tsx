@@ -45,10 +45,45 @@ function buildPrimaryLabel(session: ContestIdeationSession | null) {
   }
 
   if (session.status === "selected") {
-    return "확정한 아이디어 다시 보기";
+    return "확정한 아이디어 보기";
   }
 
   return "이전 작업 이어서 보기";
+}
+
+function buildIdeationStatus(session: ContestIdeationSession | null) {
+  if (!session) {
+    return {
+      title: "아직 시작 전",
+      description: "준비 시작하기를 누르면 AI가 방향을 잡고, 아이디어 후보를 뽑아준 뒤, 최종 추천까지 이어서 보여줍니다.",
+    };
+  }
+
+  if (session.status === "selected") {
+    return {
+      title: "아이디어 확정 완료",
+      description: session.matrixSummary ?? "이제 바로 팀 빌딩으로 넘겨서 역할 분담을 시작하면 됩니다.",
+    };
+  }
+
+  if (session.currentStage === "what") {
+    return {
+      title: "아이디어 뽑기 진행 중",
+      description: "좋아요만 눌러도 충분합니다. AI가 그 선택을 바탕으로 최종 추천 순위를 정리해줍니다.",
+    };
+  }
+
+  if (session.currentStage === "matrix") {
+    return {
+      title: "최종 선택 직전",
+      description: session.matrixSummary ?? "이제 추천 순위를 보고 하나만 확정하면 됩니다.",
+    };
+  }
+
+  return {
+    title: "꿈꾸기 진행 중",
+    description: "이 공모전으로 무엇을 이루고 싶은지만 고르면 다음 단계 아이디어는 AI가 바로 이어서 만들어줍니다.",
+  };
 }
 
 export function ContestPreparationExperience({
@@ -67,6 +102,7 @@ export function ContestPreparationExperience({
   const teamHref = session ? `/team/${contest.id}?session=${session.id}` : "#";
   const loginActionLabel = getViewerContinueActionLabel(nextPath);
   const returnDescription = getViewerReturnDescription(nextPath);
+  const ideationStatus = buildIdeationStatus(session);
 
   function closeLoginModal() {
     setIsLoginModalOpen(false);
@@ -116,27 +152,31 @@ export function ContestPreparationExperience({
         <div className="surface-card rounded-[32px] p-7 md:p-8">
           <div className="eyebrow">준비 플로우</div>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
-            전략 분석부터 브레인스토밍, 팀 빌딩 handoff까지 이 페이지에서 이어집니다.
+            전략 읽고, 아이디어 고르고, 팀 짜기까지 여기서 바로 이어집니다.
           </h2>
           <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-            대회 정보를 읽고 끝나는 게 아니라, Why / How / What / Matrix 순서로 아이디어를 좁힌 뒤 바로 팀 빌딩 진입점까지 넘깁니다.
+            공고를 읽고 끝나는 게 아니라, AI가 방향을 같이 잡아주고 최종 아이디어까지 골라준 뒤 팀 빌딩으로 넘깁니다.
           </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             <ProgressCard
               label="전략 분석"
               value={session?.progress.strategy ?? 0}
-              description={session?.progress.strategy ? "전략 리포트를 읽고 준비 흐름을 시작했습니다." : "아직 준비 시작 전입니다."}
+              description={session?.progress.strategy ? "전략 리포트를 읽고 준비 흐름을 시작했습니다." : "먼저 대회 감을 빠르게 잡는 단계입니다."}
             />
             <ProgressCard
               label="브레인스토밍"
               value={session?.progress.ideation ?? 0}
               description={
                 session?.status === "selected"
-                  ? "Why, How, What, Matrix를 거쳐 아이디어를 확정했습니다."
+                  ? "꿈꾸기, 아이디어 뽑기, 최종 선택까지 끝냈습니다."
                   : session
-                    ? `현재 단계 ${session.currentStage === "strategy" ? "Why" : session.currentStage} 진행 중입니다.`
-                    : "Why 단계부터 차례로 draft가 저장됩니다."
+                    ? session.currentStage === "what"
+                      ? "아이디어 후보를 고르는 중입니다."
+                      : session.currentStage === "matrix"
+                        ? "AI가 추천 순위를 정리해뒀습니다."
+                        : "지금은 방향만 고르면 다음 단계로 바로 넘어갑니다."
+                    : "3단계로 가볍게 끝나는 흐름입니다."
               }
             />
             <ProgressCard
@@ -154,25 +194,8 @@ export function ContestPreparationExperience({
 
           <div className="mt-6 rounded-[24px] border border-[var(--border)] bg-[var(--surface-muted)] p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">현재 상태</div>
-            <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">
-              {session
-                ? session.status === "selected"
-                  ? "아이디어 확정 완료"
-                  : `${session.currentStage === "why"
-                      ? "Why"
-                      : session.currentStage === "how"
-                        ? "How"
-                        : session.currentStage === "what"
-                          ? "What"
-                          : session.currentStage === "matrix"
-                            ? "Decision Matrix"
-                            : "전략 분석"} 단계 진행 중`
-                : "브레인스토밍을 아직 시작하지 않았습니다."}
-            </div>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-              {session?.matrixSummary ??
-                "준비 시작하기를 누르면 WHY 3개 제안부터 시작해서, 공모전 심사 기준에 맞는 아이디어를 단계별로 좁혀 갈 수 있습니다."}
-            </p>
+            <div className="mt-3 text-lg font-semibold text-[var(--foreground)]">{ideationStatus.title}</div>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ideationStatus.description}</p>
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -243,7 +266,7 @@ export function ContestPreparationExperience({
                   로그인 후 지금 흐름을 그대로 이어서 준비할 수 있습니다.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                  {returnDescription} 브레인스토밍 draft와 확정 아이디어도 자동으로 이어집니다.
+                  {returnDescription} 지금 고른 방향과 확정 아이디어도 자동으로 이어집니다.
                 </p>
               </div>
               <button type="button" onClick={closeLoginModal} className="hero-action-button shrink-0" aria-label="닫기">
