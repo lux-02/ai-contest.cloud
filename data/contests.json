@@ -33,8 +33,8 @@
       "deadlineDate": "2026-03-14",
       "prizePoolKrw": 72500000,
       "prizeLabel": "₩72,500,000",
-      "viewCount": 5,
-      "applyCount": 4,
+      "viewCount": 9,
+      "applyCount": 8,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -85,7 +85,7 @@
       "deadlineDate": "2026-03-16",
       "prizePoolKrw": 21750000,
       "prizeLabel": "₩21,750,000",
-      "viewCount": 0,
+      "viewCount": 1,
       "applyCount": 1,
       "categories": [
         "multimodal-ai",
@@ -131,7 +131,7 @@
       "deadlineDate": "2026-03-21",
       "prizePoolKrw": 8700000,
       "prizeLabel": "₩8,700,000",
-      "viewCount": 0,
+      "viewCount": 1,
       "applyCount": 1,
       "categories": [
         "llm-agents",
@@ -214,8 +214,8 @@
       "deadlineDate": "2026-03-28",
       "prizePoolKrw": 1450000,
       "prizeLabel": "₩1,450,000",
-      "viewCount": 1,
-      "applyCount": 1,
+      "viewCount": 5,
+      "applyCount": 4,
       "categories": [
         "generative-ai"
       ],
@@ -241,7 +241,7 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "₩580,000",
-      "viewCount": 99,
+      "viewCount": 105,
       "applyCount": 1,
       "categories": [
         "generative-ai"
