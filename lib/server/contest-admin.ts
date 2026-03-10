@@ -33,6 +33,8 @@ export type CreateContestState = {
   issues?: string[];
   createdSlug?: string;
   analysisStatus?: ContestAnalysisStatus;
+  contentRefreshStatus?: "triggered" | "scheduled" | "failed";
+  contentRefreshMessage?: string;
 };
 
 export type AdminContestRow = {
@@ -779,13 +781,35 @@ async function triggerContentRefreshForPublishedContest(options: {
     options.previousStatus === "published" || options.nextStatus === "published";
 
   if (!shouldTrigger) {
-    return;
+    return {
+      status: "scheduled" as const,
+      message: "draft 상태 변경이라 README/JSON 즉시 갱신은 생략하고, 정기 갱신만 유지합니다.",
+    };
   }
 
-  await triggerGitHubContentRefresh({
+  const result = await triggerGitHubContentRefresh({
     slug: options.slug,
     reason: options.reason,
   });
+
+  if (result.triggered) {
+    return {
+      status: "triggered" as const,
+      message: "README/JSON 즉시 갱신을 요청했습니다.",
+    };
+  }
+
+  if (result.reason === "missing_config") {
+    return {
+      status: "scheduled" as const,
+      message: "즉시 갱신 설정이 없어 3시간 주기 갱신만 적용됩니다.",
+    };
+  }
+
+  return {
+    status: "failed" as const,
+    message: "즉시 갱신 호출은 실패했고, 3시간 주기 갱신으로 반영됩니다.",
+  };
 }
 
 export async function createContestAction(
@@ -822,7 +846,7 @@ export async function createContestAction(
     }
 
     revalidateContestPaths(createdSlug);
-    await triggerContentRefreshForPublishedContest({
+    const contentRefresh = await triggerContentRefreshForPublishedContest({
       nextStatus: draft.status,
       slug: createdSlug,
       reason: "contest_created",
@@ -836,6 +860,8 @@ export async function createContestAction(
           : "대회는 저장됐고, 분석은 대기 상태로 생성됐습니다.",
       createdSlug,
       analysisStatus: analysis.analysisStatus,
+      contentRefreshStatus: contentRefresh.status,
+      contentRefreshMessage: contentRefresh.message,
     };
   } catch (error) {
     return {
@@ -878,7 +904,7 @@ export async function updateContestAction(
     const updatedSlug = await updateContest(contestId, draft, analysis);
 
     revalidateContestPaths(updatedSlug);
-    await triggerContentRefreshForPublishedContest({
+    const contentRefresh = await triggerContentRefreshForPublishedContest({
       previousStatus: existing.status,
       nextStatus: draft.status,
       slug: updatedSlug,
@@ -893,6 +919,8 @@ export async function updateContestAction(
           : "대회 정보는 저장했고, 분석은 기존 상태를 유지했습니다.",
       createdSlug: updatedSlug,
       analysisStatus: analysis.analysisStatus,
+      contentRefreshStatus: contentRefresh.status,
+      contentRefreshMessage: contentRefresh.message,
     };
   } catch (error) {
     return {

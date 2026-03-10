@@ -23,6 +23,18 @@ const initialState: CreateContestState = {
   status: "idle",
 };
 
+const contentRefreshPillClassName: Record<NonNullable<CreateContestState["contentRefreshStatus"]>, string> = {
+  triggered: "border-[rgba(24,116,94,0.18)] bg-[rgba(24,116,94,0.12)] text-[var(--success)]",
+  scheduled: "border-[rgba(245,241,232,0.14)] bg-[rgba(255,255,255,0.05)] text-[var(--foreground)]",
+  failed: "border-[rgba(196,76,58,0.18)] bg-[rgba(196,76,58,0.1)] text-[var(--danger)]",
+};
+
+const contentRefreshLabelMap: Record<NonNullable<CreateContestState["contentRefreshStatus"]>, string> = {
+  triggered: "README/JSON 즉시 갱신됨",
+  scheduled: "README/JSON 정기 갱신 대기",
+  failed: "README/JSON 즉시 갱신 실패",
+};
+
 const fieldClassName =
   "w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.18)] focus:bg-[rgba(255,255,255,0.05)]";
 
@@ -1509,6 +1521,18 @@ export function ContestForm({
       {state.status === "success" ? (
         <div className="rounded-[24px] border border-[rgba(24,116,94,0.16)] bg-[rgba(24,116,94,0.08)] p-4 text-sm text-[var(--success)]">
           <div className="font-semibold">{state.message}</div>
+          {state.contentRefreshStatus ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${contentRefreshPillClassName[state.contentRefreshStatus]}`}
+              >
+                {contentRefreshLabelMap[state.contentRefreshStatus]}
+              </span>
+              {state.contentRefreshMessage ? (
+                <span className="text-xs leading-6 text-[var(--muted)]">{state.contentRefreshMessage}</span>
+              ) : null}
+            </div>
+          ) : null}
           {state.createdSlug ? (
             <div className="mt-3 flex flex-wrap gap-3">
               <Link href={`/contests/${state.createdSlug}`} className="secondary-button">
