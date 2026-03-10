@@ -293,6 +293,7 @@ async function main() {
             slug,
             title,
             organizer,
+            organizer_type,
             short_description,
             description,
             url,
@@ -316,21 +317,29 @@ async function main() {
             prize_pool_krw,
             prize_summary,
             submission_format,
+            submission_items,
+            judging_criteria,
+            stage_schedule,
+            past_winners,
             tools_allowed,
             dataset_provided,
             dataset_summary,
             ai_categories,
             tags,
+            view_count,
+            apply_count,
             status
           )
           values (
-            $1, $2, $3, $4, $5, $6, 'manual', $7, $8, $9, $10, $11, $12, $13, $14,
-            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
+            $1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9, $10, $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31,
+            $32, $33, $34, $35, $36, $37, $38
           )
           on conflict (slug) do update
           set
             title = excluded.title,
             organizer = excluded.organizer,
+            organizer_type = excluded.organizer_type,
             short_description = excluded.short_description,
             description = excluded.description,
             url = excluded.url,
@@ -353,11 +362,17 @@ async function main() {
             prize_pool_krw = excluded.prize_pool_krw,
             prize_summary = excluded.prize_summary,
             submission_format = excluded.submission_format,
+            submission_items = excluded.submission_items,
+            judging_criteria = excluded.judging_criteria,
+            stage_schedule = excluded.stage_schedule,
+            past_winners = excluded.past_winners,
             tools_allowed = excluded.tools_allowed,
             dataset_provided = excluded.dataset_provided,
             dataset_summary = excluded.dataset_summary,
             ai_categories = excluded.ai_categories,
             tags = excluded.tags,
+            view_count = excluded.view_count,
+            apply_count = excluded.apply_count,
             status = excluded.status
           returning id
         `,
@@ -365,6 +380,7 @@ async function main() {
           contest.slug,
           contest.title,
           contest.organizer,
+          contest.organizerType ?? null,
           contest.shortDescription,
           contest.description,
           contest.url,
@@ -387,11 +403,17 @@ async function main() {
           contest.prizePoolKrw ?? null,
           contest.prizeSummary ?? null,
           contest.submissionFormat ?? null,
+          contest.submissionItems ?? [],
+          JSON.stringify(contest.judgingCriteria ?? []),
+          JSON.stringify(contest.stageSchedule ?? []),
+          contest.pastWinners ?? null,
           contest.toolsAllowed,
           contest.datasetProvided,
           contest.datasetSummary ?? null,
           contest.aiCategories,
           contest.tags,
+          contest.viewCount ?? 0,
+          contest.applyCount ?? 0,
           contest.status,
         ],
       );

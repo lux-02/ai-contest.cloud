@@ -2,7 +2,10 @@ import type {
   ContestAnalysisStatus,
   ContestCategory,
   ContestDifficulty,
+  ContestJudgingCriterion,
   ContestMode,
+  ContestOrganizerType,
+  ContestStage,
   ContestStatus,
 } from "@/types/contest";
 
@@ -10,6 +13,7 @@ export type ContestDraft = {
   slug: string;
   title: string;
   organizer: string;
+  organizerType: ContestOrganizerType | null;
   shortDescription: string | null;
   description: string;
   url: string;
@@ -32,6 +36,10 @@ export type ContestDraft = {
   prizePoolKrw: number | null;
   prizeSummary: string | null;
   submissionFormat: string | null;
+  submissionItems: string[];
+  judgingCriteria: ContestJudgingCriterion[];
+  stageSchedule: ContestStage[];
+  pastWinners: string | null;
   toolsAllowed: string[];
   datasetProvided: boolean;
   datasetSummary: string | null;

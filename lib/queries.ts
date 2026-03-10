@@ -2,13 +2,24 @@ import { cache } from "react";
 
 import { mockContests } from "@/lib/mock-contests";
 import { getSupabaseClient } from "@/lib/supabase";
-import { getCategoryMeta, type Contest, type ContestAnalysis, type ContestBadge, type ContestFilters } from "@/types/contest";
+import {
+  getCategoryMeta,
+  type Contest,
+  type ContestAnalysis,
+  type ContestBadge,
+  type ContestFilters,
+  type ContestJudgingCriterion,
+  type ContestOrganizerType,
+  type ContestStage,
+} from "@/types/contest";
+import { getContestPopularityScore, getDaysUntil } from "@/lib/utils";
 
 type ContestRow = {
   id: string;
   slug: string;
   title: string;
   organizer: string;
+  organizer_type: ContestOrganizerType | null;
   short_description: string | null;
   description: string;
   url: string;
@@ -31,11 +42,17 @@ type ContestRow = {
   prize_pool_krw: number | null;
   prize_summary: string | null;
   submission_format: string | null;
+  submission_items: string[] | null;
+  judging_criteria: unknown;
+  stage_schedule: unknown;
+  past_winners: string | null;
   tools_allowed: string[] | null;
   dataset_provided: boolean;
   dataset_summary: string | null;
   ai_categories: Contest["aiCategories"] | null;
   tags: string[] | null;
+  view_count: number | null;
+  apply_count: number | null;
   status: Contest["status"];
   contest_badges: { badge: ContestBadge; reason: string | null }[] | null;
   contest_ai_analysis:
@@ -79,12 +96,90 @@ function normalizeAnalysis(row: ContestRow): ContestAnalysis {
   };
 }
 
+function parseJsonArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function normalizeJudgingCriteriaValue(value: unknown): ContestJudgingCriterion[] {
+  return parseJsonArray(value)
+    .flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+
+      const row = item as {
+        label?: unknown;
+        weight?: unknown;
+        description?: unknown;
+      };
+
+      if (typeof row.label !== "string" || row.label.trim().length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          label: row.label.trim(),
+          weight: typeof row.weight === "number" ? row.weight : null,
+          description: typeof row.description === "string" ? row.description.trim() || null : null,
+        } satisfies ContestJudgingCriterion,
+      ];
+    })
+    .slice(0, 8);
+}
+
+function normalizeStageScheduleValue(value: unknown): ContestStage[] {
+  return parseJsonArray(value)
+    .flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+
+      const row = item as {
+        label?: unknown;
+        date?: unknown;
+        note?: unknown;
+      };
+
+      if (typeof row.label !== "string" || row.label.trim().length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          label: row.label.trim(),
+          date: typeof row.date === "string" ? row.date.trim() || null : null,
+          note: typeof row.note === "string" ? row.note.trim() || null : null,
+        } satisfies ContestStage,
+      ];
+    })
+    .slice(0, 8);
+}
+
 function mapContestRow(row: ContestRow): Contest {
+  const analysis = normalizeAnalysis(row);
+  const judgingCriteria = normalizeJudgingCriteriaValue(row.judging_criteria);
+  const stageSchedule = normalizeStageScheduleValue(row.stage_schedule);
+
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     organizer: row.organizer,
+    organizerType: row.organizer_type ?? deriveOrganizerType(row.organizer),
     shortDescription: row.short_description ?? row.description.slice(0, 140),
     description: row.description,
     url: row.url,
@@ -107,14 +202,27 @@ function mapContestRow(row: ContestRow): Contest {
     prizePoolKrw: row.prize_pool_krw ?? undefined,
     prizeSummary: row.prize_summary ?? undefined,
     submissionFormat: row.submission_format ?? undefined,
+    submissionItems:
+      row.submission_items && row.submission_items.length > 0
+        ? row.submission_items
+        : buildFallbackSubmissionItems(row.submission_format),
+    judgingCriteria:
+      judgingCriteria.length > 0 ? judgingCriteria : buildFallbackJudgingCriteria(analysis.judgingFocus),
+    stageSchedule:
+      stageSchedule.length > 0
+        ? stageSchedule
+        : buildFallbackStageSchedule(row.start_date, row.deadline, row.event_date),
+    pastWinners: row.past_winners ?? undefined,
     toolsAllowed: row.tools_allowed ?? [],
     datasetProvided: row.dataset_provided,
     datasetSummary: row.dataset_summary ?? undefined,
     aiCategories: row.ai_categories ?? [],
     tags: row.tags ?? [],
     badges: row.contest_badges?.map((badge) => badge.badge) ?? [],
+    viewCount: row.view_count ?? 0,
+    applyCount: row.apply_count ?? 0,
     status: row.status,
-    analysis: normalizeAnalysis(row),
+    analysis,
   };
 }
 
@@ -126,31 +234,146 @@ function compactSearchText(value: string) {
   return normalizeSearchText(value).replace(/\s+/g, "");
 }
 
+function deriveOrganizerType(organizer: string): ContestOrganizerType {
+  const normalized = organizer.toLowerCase();
+
+  if (
+    /정부|공공|부처|청|시청|구청|도청|한국|kotra|진흥원|공사|산업통상|과학기술|ministry|government|agency/.test(
+      normalized,
+    )
+  ) {
+    return "government";
+  }
+
+  if (/재단|foundation/.test(normalized)) {
+    return "foundation";
+  }
+
+  if (/대학교|대학|university|college/.test(normalized)) {
+    return "university";
+  }
+
+  if (/openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|microsoft|amazon|meta/.test(normalized)) {
+    return "enterprise";
+  }
+
+  if (/startup|works|labs|lab|studio/.test(normalized)) {
+    return "startup";
+  }
+
+  return "community";
+}
+
+function buildFallbackStageSchedule(startDate?: string | null, deadline?: string | null, eventDate?: string | null) {
+  return [
+    startDate ? ({ label: "접수 시작", date: startDate, note: null } satisfies ContestStage) : null,
+    deadline ? ({ label: "서류 마감", date: deadline, note: null } satisfies ContestStage) : null,
+    eventDate ? ({ label: "발표 / 본선", date: eventDate, note: null } satisfies ContestStage) : null,
+  ].flatMap((stage) => (stage ? [stage] : []));
+}
+
+function buildFallbackSubmissionItems(submissionFormat?: string | null) {
+  if (!submissionFormat) {
+    return [];
+  }
+
+  return submissionFormat
+    .split(/,|\n|·/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function buildFallbackJudgingCriteria(judgingFocus?: string | null) {
+  if (!judgingFocus) {
+    return [];
+  }
+
+  const items = judgingFocus
+    .split(/,|\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (items.length === 0) {
+    return [];
+  }
+
+  const evenWeight = Math.floor(100 / items.length);
+
+  return items.map((item, index) => ({
+    label: item,
+    weight: index === items.length - 1 ? 100 - evenWeight * index : evenWeight,
+    description: null,
+  }));
+}
+
 function buildContestSearchIndex(contest: Contest) {
   return [
     contest.title,
     contest.organizer,
+    contest.organizerType,
     contest.shortDescription,
     contest.description,
     contest.eligibilityText,
     contest.prizeSummary,
     contest.submissionFormat,
+    contest.pastWinners,
     contest.analysis.summary,
     contest.analysis.recommendReason,
     contest.analysis.winStrategy,
     ...contest.tags,
     ...contest.toolsAllowed,
     ...contest.aiCategories.map((category) => getCategoryMeta(category).label),
+    ...(contest.submissionItems ?? []),
+    ...(contest.judgingCriteria ?? []).map((criterion) => criterion.label),
   ]
     .filter(Boolean)
     .join(" \n");
+}
+
+function sortContests(contests: Contest[], sort: NonNullable<ContestFilters["sort"]> = "deadline") {
+  const sorted = [...contests];
+
+  if (sort === "prize") {
+    return sorted.sort((left, right) => (right.prizePoolKrw ?? 0) - (left.prizePoolKrw ?? 0));
+  }
+
+  if (sort === "popular") {
+    return sorted.sort(
+      (left, right) =>
+        getContestPopularityScore(right.viewCount ?? 0, right.applyCount ?? 0) -
+          getContestPopularityScore(left.viewCount ?? 0, left.applyCount ?? 0) ||
+        (right.applyCount ?? 0) - (left.applyCount ?? 0) ||
+        (right.viewCount ?? 0) - (left.viewCount ?? 0),
+    );
+  }
+
+  return sorted.sort((left, right) => {
+    const leftDays = getDaysUntil(left.deadline);
+    const rightDays = getDaysUntil(right.deadline);
+
+    if (leftDays === null && rightDays === null) {
+      return 0;
+    }
+
+    if (leftDays === null) {
+      return 1;
+    }
+
+    if (rightDays === null) {
+      return -1;
+    }
+
+    return leftDays - rightDays;
+  });
 }
 
 function applyFilters(contests: Contest[], filters: ContestFilters) {
   const normalizedQuery = filters.query ? normalizeSearchText(filters.query) : "";
   const compactQuery = normalizedQuery ? compactSearchText(normalizedQuery) : "";
 
-  return contests.filter((contest) => {
+  const filtered = contests.filter((contest) => {
     if (normalizedQuery) {
       const searchIndex = buildContestSearchIndex(contest);
       const normalizedIndex = normalizeSearchText(searchIndex);
@@ -173,8 +396,22 @@ function applyFilters(contests: Contest[], filters: ContestFilters) {
       return false;
     }
 
+    if (filters.organizerType && contest.organizerType !== filters.organizerType) {
+      return false;
+    }
+
+    if (filters.teamType === "individual" && contest.teamAllowed) {
+      return false;
+    }
+
+    if (filters.teamType === "team" && !contest.teamAllowed) {
+      return false;
+    }
+
     return true;
   });
+
+  return sortContests(filtered, filters.sort ?? "deadline");
 }
 
 const fetchContestDataset = cache(async () => {
@@ -193,6 +430,7 @@ const fetchContestDataset = cache(async () => {
           slug,
           title,
           organizer,
+          organizer_type,
           short_description,
           description,
           url,
@@ -215,11 +453,17 @@ const fetchContestDataset = cache(async () => {
           prize_pool_krw,
           prize_summary,
           submission_format,
+          submission_items,
+          judging_criteria,
+          stage_schedule,
+          past_winners,
           tools_allowed,
           dataset_provided,
           dataset_summary,
           ai_categories,
           tags,
+          view_count,
+          apply_count,
           status,
           contest_badges (badge, reason),
           contest_ai_analysis (

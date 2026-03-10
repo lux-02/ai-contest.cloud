@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ContestCard } from "@/components/contest-card";
 import { FilterBar } from "@/components/filter-bar";
 import { getContests } from "@/lib/queries";
-import { formatCategory, formatDeadlineLabel, formatDifficulty } from "@/lib/utils";
+import { formatCategory, formatCompactNumber, formatContestSort, formatDeadlineLabel, formatDifficulty } from "@/lib/utils";
 import {
   contestBadgeOptions,
   contestCategoryOptions,
@@ -11,7 +11,13 @@ import {
   isContestBadge,
   isContestCategory,
   isContestDifficulty,
+  isContestOrganizerType,
+  isContestSortOption,
+  isContestTeamFilter,
+  organizerTypeOptions,
 } from "@/types/contest";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams: Promise<{
@@ -19,6 +25,9 @@ type PageProps = {
     category?: string;
     badge?: string;
     difficulty?: string;
+    organizerType?: string;
+    teamType?: string;
+    sort?: string;
   }>;
 };
 
@@ -31,14 +40,26 @@ export default async function ContestsPage({ searchParams }: PageProps) {
     category: isContestCategory(params.category) ? params.category : undefined,
     badge: isContestBadge(params.badge) ? params.badge : undefined,
     difficulty: isContestDifficulty(params.difficulty) ? params.difficulty : undefined,
+    organizerType: isContestOrganizerType(params.organizerType) ? params.organizerType : undefined,
+    teamType: isContestTeamFilter(params.teamType) ? params.teamType : undefined,
+    sort: isContestSortOption(params.sort) ? params.sort : "deadline",
   };
 
   const contests = await getContests(filters);
   const spotlight = contests[0];
-  const hasFilters = Boolean(filters.query || filters.category || filters.badge || filters.difficulty);
+  const hasFilters = Boolean(
+    filters.query ||
+      filters.category ||
+      filters.badge ||
+      filters.difficulty ||
+      filters.organizerType ||
+      filters.teamType ||
+      (filters.sort && filters.sort !== "deadline"),
+  );
   const uniqueCategories = new Set(contests.flatMap((contest) => contest.aiCategories));
   const urgentCount = contests.filter((contest) => contest.badges.includes("deadline_urgent")).length;
   const studentCount = contests.filter((contest) => contest.badges.includes("student_friendly")).length;
+  const popularTotal = contests.reduce((sum, contest) => sum + (contest.viewCount ?? 0), 0);
 
   const activeSignals = [
     filters.query ? `"${filters.query}" 검색 결과` : "대회명 / 주최기관 / 기술 스택 검색",
@@ -49,6 +70,10 @@ export default async function ContestsPage({ searchParams }: PageProps) {
     filters.difficulty
       ? difficultyOptions.find((option) => option.id === filters.difficulty)?.label
       : "입문부터 상위권 대회까지",
+    filters.organizerType
+      ? organizerTypeOptions.find((option) => option.id === filters.organizerType)?.label
+      : "주최 성격 필터 지원",
+    filters.sort ? formatContestSort(filters.sort) : "마감임박순",
   ].flatMap((item) => (item ? [item] : []));
 
   return (
@@ -73,7 +98,7 @@ export default async function ContestsPage({ searchParams }: PageProps) {
             ))}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="hero-metric">
               <div className="text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">{contests.length}</div>
               <div className="mt-2 text-sm text-[var(--muted)]">현재 조건에 맞는 대회</div>
@@ -85,6 +110,10 @@ export default async function ContestsPage({ searchParams }: PageProps) {
             <div className="hero-metric">
               <div className="text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">{studentCount}</div>
               <div className="mt-2 text-sm text-[var(--muted)]">학생 친화 대회</div>
+            </div>
+            <div className="hero-metric">
+              <div className="text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">{formatCompactNumber(popularTotal)}</div>
+              <div className="mt-2 text-sm text-[var(--muted)]">누적 조회 반응</div>
             </div>
           </div>
         </div>
@@ -159,6 +188,9 @@ export default async function ContestsPage({ searchParams }: PageProps) {
           selectedCategory={filters.category}
           selectedBadge={filters.badge}
           selectedDifficulty={filters.difficulty}
+          selectedOrganizerType={filters.organizerType}
+          selectedTeamType={filters.teamType}
+          selectedSort={filters.sort}
           total={contests.length}
         />
 
@@ -177,7 +209,7 @@ export default async function ContestsPage({ searchParams }: PageProps) {
               </div>
             </div>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--muted)]">
-              카드에서는 한줄 요약과 추천 이유를 먼저 보고, 상세로 들어가면 심사 포인트와 준비 체크리스트까지 이어서 읽을 수
+              카드에서 D-day, 상금, 주최 성격, 조회 반응을 먼저 보고, 상세로 들어가면 심사 기준과 준비 서류까지 바로 확인할 수
               있습니다.
             </p>
           </div>

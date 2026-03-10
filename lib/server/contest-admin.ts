@@ -8,10 +8,14 @@ import { type PoolClient, type QueryResultRow } from "pg";
 
 import {
   contestCategoryOptions,
+  organizerTypeOptions,
   type ContestAnalysisStatus,
   type ContestCategory,
   type ContestDifficulty,
+  type ContestJudgingCriterion,
   type ContestMode,
+  type ContestOrganizerType,
+  type ContestStage,
   type ContestStatus,
 } from "@/types/contest";
 import {
@@ -65,6 +69,7 @@ type AdminContestRecordRow = QueryResultRow & {
   slug: string;
   title: string;
   organizer: string;
+  organizer_type: ContestOrganizerType | null;
   short_description: string | null;
   description: string;
   url: string;
@@ -87,6 +92,10 @@ type AdminContestRecordRow = QueryResultRow & {
   prize_pool_krw: number | null;
   prize_summary: string | null;
   submission_format: string | null;
+  submission_items: string[] | null;
+  judging_criteria: ContestJudgingCriterion[] | null;
+  stage_schedule: ContestStage[] | null;
+  past_winners: string | null;
   tools_allowed: string[] | null;
   dataset_provided: boolean;
   dataset_summary: string | null;
@@ -131,6 +140,42 @@ function parseCategories(formData: FormData) {
   );
 }
 
+function parseOrganizerType(value: FormDataEntryValue | null) {
+  const parsed = parseString(value);
+  return organizerTypeOptions.some((option) => option.id === parsed) ? (parsed as ContestOrganizerType) : null;
+}
+
+function parseTextareaList(value: FormDataEntryValue | null) {
+  return parseString(value)
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseStageSchedule(value: FormDataEntryValue | null) {
+  return parseTextareaList(value).map((line) => {
+    const [label, date, note] = line.split("|").map((item) => item.trim());
+    return {
+      label,
+      date: date || null,
+      note: note || null,
+    } satisfies ContestStage;
+  });
+}
+
+function parseJudgingCriteria(value: FormDataEntryValue | null) {
+  return parseTextareaList(value)
+    .map((line) => {
+      const [label, weight, description] = line.split("|").map((item) => item.trim());
+      return {
+        label,
+        weight: weight ? Number(weight) : null,
+        description: description || null,
+      } satisfies ContestJudgingCriterion;
+    })
+    .filter((criterion) => criterion.label);
+}
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -146,6 +191,7 @@ function slugify(input: string) {
 function buildContestDraft(formData: FormData, fallbackSlug?: string): { draft?: ContestDraft; issues: string[] } {
   const title = parseString(formData.get("title"));
   const organizer = parseString(formData.get("organizer"));
+  const organizerType = parseOrganizerType(formData.get("organizerType"));
   const description = parseString(formData.get("description"));
   const url = parseString(formData.get("url"));
   const shortDescription = parseOptionalString(formData.get("shortDescription"));
@@ -169,6 +215,10 @@ function buildContestDraft(formData: FormData, fallbackSlug?: string): { draft?:
   const prizePoolKrw = prizePoolValue ? Number.parseFloat(prizePoolValue) : null;
   const prizeSummary = parseOptionalString(formData.get("prizeSummary"));
   const submissionFormat = parseOptionalString(formData.get("submissionFormat"));
+  const submissionItems = parseTextareaList(formData.get("submissionItems"));
+  const judgingCriteria = parseJudgingCriteria(formData.get("judgingCriteria"));
+  const stageSchedule = parseStageSchedule(formData.get("stageSchedule"));
+  const pastWinners = parseOptionalString(formData.get("pastWinners"));
   const toolsAllowed = parseCommaList(formData.get("toolsAllowed"));
   const datasetProvided = parseBoolean(formData.get("datasetProvided"));
   const datasetSummary = parseOptionalString(formData.get("datasetSummary"));
@@ -232,6 +282,7 @@ function buildContestDraft(formData: FormData, fallbackSlug?: string): { draft?:
       slug: (fallbackSlug ?? slugify(title)) || `contest-${randomUUID().slice(0, 8)}`,
       title,
       organizer,
+      organizerType,
       shortDescription,
       description,
       url,
@@ -254,6 +305,10 @@ function buildContestDraft(formData: FormData, fallbackSlug?: string): { draft?:
       prizePoolKrw,
       prizeSummary,
       submissionFormat,
+      submissionItems,
+      judgingCriteria,
+      stageSchedule,
+      pastWinners,
       toolsAllowed,
       datasetProvided,
       datasetSummary,
@@ -298,6 +353,7 @@ function mapAdminContestRecord(row: AdminContestRecordRow): AdminContestRecord {
     slug: row.slug,
     title: row.title,
     organizer: row.organizer,
+    organizerType: row.organizer_type,
     shortDescription: row.short_description,
     description: row.description,
     url: row.url,
@@ -320,6 +376,10 @@ function mapAdminContestRecord(row: AdminContestRecordRow): AdminContestRecord {
     prizePoolKrw: row.prize_pool_krw,
     prizeSummary: row.prize_summary,
     submissionFormat: row.submission_format,
+    submissionItems: row.submission_items ?? [],
+    judgingCriteria: row.judging_criteria ?? [],
+    stageSchedule: row.stage_schedule ?? [],
+    pastWinners: row.past_winners,
     toolsAllowed: row.tools_allowed ?? [],
     datasetProvided: row.dataset_provided,
     datasetSummary: row.dataset_summary,
@@ -432,6 +492,7 @@ async function insertContest(draft: ContestDraft, analysis: GeneratedAnalysis, f
           slug,
           title,
           organizer,
+          organizer_type,
           short_description,
           description,
           url,
@@ -455,6 +516,10 @@ async function insertContest(draft: ContestDraft, analysis: GeneratedAnalysis, f
           prize_pool_krw,
           prize_summary,
           submission_format,
+          submission_items,
+          judging_criteria,
+          stage_schedule,
+          past_winners,
           tools_allowed,
           dataset_provided,
           dataset_summary,
@@ -463,8 +528,8 @@ async function insertContest(draft: ContestDraft, analysis: GeneratedAnalysis, f
           status
         )
         values (
-          $1, $2, $3, $4, $5, $6, 'manual', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-          $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
+          $1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32, $33, $34, $35, $36
         )
         returning id
       `,
@@ -472,6 +537,7 @@ async function insertContest(draft: ContestDraft, analysis: GeneratedAnalysis, f
         resolvedSlug,
         draft.title,
         draft.organizer,
+        draft.organizerType,
         draft.shortDescription,
         draft.description,
         draft.url,
@@ -494,6 +560,10 @@ async function insertContest(draft: ContestDraft, analysis: GeneratedAnalysis, f
         draft.prizePoolKrw,
         draft.prizeSummary,
         draft.submissionFormat,
+        draft.submissionItems,
+        JSON.stringify(draft.judgingCriteria),
+        JSON.stringify(draft.stageSchedule),
+        draft.pastWinners,
         draft.toolsAllowed,
         draft.datasetProvided,
         draft.datasetSummary,
@@ -535,34 +605,39 @@ async function updateContest(contestId: string, draft: ContestDraft, analysis: G
         set
           title = $2,
           organizer = $3,
-          short_description = $4,
-          description = $5,
-          url = $6,
-          source_url = $7,
-          poster_image_url = $8,
-          apply_url = $9,
-          start_date = $10,
-          deadline = $11,
-          event_date = $12,
-          participation_mode = $13,
-          location = $14,
-          eligibility_text = $15,
-          eligibility_segments = $16,
-          difficulty = $17,
-          team_allowed = $18,
-          min_team_size = $19,
-          max_team_size = $20,
-          language = $21,
-          global_participation = $22,
-          prize_pool_krw = $23,
-          prize_summary = $24,
-          submission_format = $25,
-          tools_allowed = $26,
-          dataset_provided = $27,
-          dataset_summary = $28,
-          ai_categories = $29,
-          tags = $30,
-          status = $31
+          organizer_type = $4,
+          short_description = $5,
+          description = $6,
+          url = $7,
+          source_url = $8,
+          poster_image_url = $9,
+          apply_url = $10,
+          start_date = $11,
+          deadline = $12,
+          event_date = $13,
+          participation_mode = $14,
+          location = $15,
+          eligibility_text = $16,
+          eligibility_segments = $17,
+          difficulty = $18,
+          team_allowed = $19,
+          min_team_size = $20,
+          max_team_size = $21,
+          language = $22,
+          global_participation = $23,
+          prize_pool_krw = $24,
+          prize_summary = $25,
+          submission_format = $26,
+          submission_items = $27,
+          judging_criteria = $28::jsonb,
+          stage_schedule = $29::jsonb,
+          past_winners = $30,
+          tools_allowed = $31,
+          dataset_provided = $32,
+          dataset_summary = $33,
+          ai_categories = $34,
+          tags = $35,
+          status = $36
         where id = $1
         returning slug
       `,
@@ -570,6 +645,7 @@ async function updateContest(contestId: string, draft: ContestDraft, analysis: G
         contestId,
         draft.title,
         draft.organizer,
+        draft.organizerType,
         draft.shortDescription,
         draft.description,
         draft.url,
@@ -592,6 +668,10 @@ async function updateContest(contestId: string, draft: ContestDraft, analysis: G
         draft.prizePoolKrw,
         draft.prizeSummary,
         draft.submissionFormat,
+        draft.submissionItems,
+        JSON.stringify(draft.judgingCriteria),
+        JSON.stringify(draft.stageSchedule),
+        draft.pastWinners,
         draft.toolsAllowed,
         draft.datasetProvided,
         draft.datasetSummary,
@@ -629,6 +709,7 @@ async function getContestDraftById(contestId: string) {
         contests.slug,
         contests.title,
         contests.organizer,
+        contests.organizer_type,
         contests.short_description,
         contests.description,
         contests.url,
@@ -651,6 +732,10 @@ async function getContestDraftById(contestId: string) {
         contests.prize_pool_krw,
         contests.prize_summary,
         contests.submission_format,
+        contests.submission_items,
+        contests.judging_criteria,
+        contests.stage_schedule,
+        contests.past_winners,
         contests.tools_allowed,
         contests.dataset_provided,
         contests.dataset_summary,
@@ -852,6 +937,7 @@ export async function getAdminContestBySlug(slug: string) {
         contests.slug,
         contests.title,
         contests.organizer,
+        contests.organizer_type,
         contests.short_description,
         contests.description,
         contests.url,
@@ -874,6 +960,10 @@ export async function getAdminContestBySlug(slug: string) {
         contests.prize_pool_krw,
         contests.prize_summary,
         contests.submission_format,
+        contests.submission_items,
+        contests.judging_criteria,
+        contests.stage_schedule,
+        contests.past_winners,
         contests.tools_allowed,
         contests.dataset_provided,
         contests.dataset_summary,

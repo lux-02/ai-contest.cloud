@@ -36,10 +36,13 @@ function formatSourceType(sourceType: string) {
 export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
   const [result, setResult] = useState<ContestStrategyLabResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ideaInput, setIdeaInput] = useState("");
+  const [lastIdea, setLastIdea] = useState<string | null>(null);
   const [isPending, startLoading] = useTransition();
 
   async function handleGenerate() {
     setError(null);
+    const trimmedIdea = ideaInput.trim();
 
     startLoading(async () => {
       try {
@@ -49,7 +52,8 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            refresh: Boolean(result),
+            refresh: Boolean(result) && !trimmedIdea,
+            userIdea: trimmedIdea || undefined,
           }),
         });
 
@@ -62,6 +66,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
         const data = (await response.json()) as ContestStrategyLabResult;
         startTransition(() => {
           setResult(data);
+          setLastIdea(trimmedIdea || null);
         });
       } catch {
         setError("브레인스토밍 생성에 실패했습니다.");
@@ -79,8 +84,25 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
           </p>
         </div>
         <button type="button" className="secondary-button" onClick={handleGenerate} disabled={isPending}>
-          {isPending ? "생성 중..." : result ? "다시 브레인스토밍" : "브레인스토밍"}
+          {isPending ? "생성 중..." : ideaInput.trim() ? "아이디어 맞춤 초안 만들기" : result ? "다시 브레인스토밍" : "브레인스토밍"}
         </button>
+      </div>
+
+      <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+        <label htmlFor={`strategy-idea-${slug}`} className="text-sm font-semibold text-[var(--foreground)]">
+          내 아이디어 초안
+        </label>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+          한 줄 아이디어나 방향만 적어도 됩니다. 심사 기준과 준비 항목에 맞춰 더 설득력 있는 전략 초안으로 다시 정리합니다.
+        </p>
+        <textarea
+          id={`strategy-idea-${slug}`}
+          value={ideaInput}
+          onChange={(event) => setIdeaInput(event.target.value)}
+          rows={4}
+          placeholder="예: 골프 GTI의 퍼포먼스를 젊은 세대 감성으로 보여주는 30초 AI 광고를 만들고 싶어요."
+          className="mt-3 min-h-[112px] w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.24)]"
+        />
       </div>
 
       {error ? (
@@ -115,6 +137,11 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
         <div className="mt-5 space-y-5">
           <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">추천 방향</div>
+            {lastIdea ? (
+              <div className="mt-3 rounded-[18px] border border-[rgba(245,241,232,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]">
+                입력한 아이디어: {lastIdea}
+              </div>
+            ) : null}
             <p className="mt-3 text-base leading-7 text-[var(--foreground)]">{result.overview}</p>
             <div className="mt-4 rounded-[18px] border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--foreground)]">
               추천 콘셉트: {result.recommendedDirection}

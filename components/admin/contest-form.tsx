@@ -7,9 +7,13 @@ import { startTransition, useActionState, useDeferredValue, useRef, useState } f
 import {
   contestCategoryOptions,
   difficultyOptions,
+  organizerTypeOptions,
   type ContestCategory,
   type ContestDifficulty,
+  type ContestJudgingCriterion,
   type ContestMode,
+  type ContestOrganizerType,
+  type ContestStage,
   type ContestStatus,
 } from "@/types/contest";
 import type { CreateContestState } from "@/lib/server/contest-admin";
@@ -38,6 +42,7 @@ export type ContestFormInitialData = {
   slug: string;
   title: string;
   organizer: string;
+  organizerType?: ContestOrganizerType | null;
   shortDescription?: string | null;
   description: string;
   url: string;
@@ -60,6 +65,10 @@ export type ContestFormInitialData = {
   prizePoolKrw?: number | null;
   prizeSummary?: string | null;
   submissionFormat?: string | null;
+  submissionItems?: string[];
+  judgingCriteria?: ContestJudgingCriterion[];
+  stageSchedule?: ContestStage[];
+  pastWinners?: string | null;
   toolsAllowed: string[];
   datasetProvided: boolean;
   datasetSummary?: string | null;
@@ -78,6 +87,7 @@ type ContestFormProps = {
 type QuickFillFields = {
   title?: string;
   organizer?: string;
+  organizerType?: ContestOrganizerType | null;
   shortDescription?: string;
   description?: string;
   url?: string;
@@ -99,6 +109,10 @@ type QuickFillFields = {
   prizePoolKrw?: number | null;
   prizeSummary?: string;
   submissionFormat?: string;
+  submissionItems?: string[];
+  judgingCriteria?: ContestJudgingCriterion[];
+  stageSchedule?: ContestStage[];
+  pastWinners?: string | null;
   toolsAllowed?: string[];
   datasetProvided?: boolean | null;
   datasetSummary?: string | null;
@@ -159,6 +173,18 @@ function InputShell({
 
 function joinList(values?: string[] | null) {
   return values?.join(", ") ?? "";
+}
+
+function joinSubmissionItems(values?: string[] | null) {
+  return values?.join("\n") ?? "";
+}
+
+function joinStageSchedule(values?: ContestStage[] | null) {
+  return values?.map((item) => [item.label, item.date ?? "", item.note ?? ""].join(" | ")).join("\n") ?? "";
+}
+
+function joinJudgingCriteria(values?: ContestJudgingCriterion[] | null) {
+  return values?.map((item) => [item.label, item.weight ?? "", item.description ?? ""].join(" | ")).join("\n") ?? "";
 }
 
 function formatCategoryLabels(categories?: ContestCategory[] | null) {
@@ -780,6 +806,11 @@ export function ContestForm({
   const [quickFillPreview, setQuickFillPreview] = useState<QuickFillPreviewItem[]>([
     { label: "제목 후보", value: initialData?.title || "원문을 붙여 넣으면 자동으로 채워집니다." },
     { label: "마감일", value: toDateInputValue(initialData?.deadline) || "원문에서 자동 추출" },
+    {
+      label: "주최 성격",
+      value:
+        organizerTypeOptions.find((option) => option.id === initialData?.organizerType)?.label ?? "대기업 / 정부 / 재단 자동 분류",
+    },
     { label: "참가 대상", value: initialData?.eligibilityText || "대학생 / 개인·팀 여부 자동 추출" },
     { label: "신청 링크", value: initialData?.applyUrl || "구글폼 / 공식 신청 링크 자동 감지" },
     {
@@ -833,6 +864,10 @@ export function ContestForm({
 
     if (fields.organizer) {
       setOrganizerValue(fields.organizer);
+    }
+
+    if (fields.organizerType) {
+      syncFieldValue("organizerType", fields.organizerType);
     }
 
     if (fields.shortDescription) {
@@ -917,6 +952,28 @@ export function ContestForm({
 
     if (fields.submissionFormat) {
       syncFieldValue("submissionFormat", fields.submissionFormat);
+    }
+
+    if (fields.submissionItems) {
+      syncFieldValue("submissionItems", fields.submissionItems.join("\n"));
+    }
+
+    if (fields.judgingCriteria) {
+      syncFieldValue(
+        "judgingCriteria",
+        fields.judgingCriteria.map((item) => [item.label, item.weight ?? "", item.description ?? ""].join(" | ")).join("\n"),
+      );
+    }
+
+    if (fields.stageSchedule) {
+      syncFieldValue(
+        "stageSchedule",
+        fields.stageSchedule.map((item) => [item.label, item.date ?? "", item.note ?? ""].join(" | ")).join("\n"),
+      );
+    }
+
+    if (fields.pastWinners !== undefined) {
+      syncFieldValue("pastWinners", fields.pastWinners ?? "");
     }
 
     if (fields.toolsAllowed) {
@@ -1142,6 +1199,20 @@ export function ContestForm({
               required
             />
           </InputShell>
+          <InputShell label="주최 성격" helper="대기업, 정부·공공기관, 재단 여부가 탐색 필터와 신뢰도 판단에 바로 쓰입니다.">
+            <select
+              name="organizerType"
+              className={fieldClassName}
+              defaultValue={initialData?.organizerType ?? ""}
+            >
+              <option value="">자동 / 미정</option>
+              {organizerTypeOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </InputShell>
           <div className="md:col-span-2">
             <InputShell label="한 줄 요약" helper="대회 카드에서 먼저 보이는 문장입니다. 60~80자 정도가 가장 깔끔합니다.">
               <input
@@ -1235,6 +1306,55 @@ export function ContestForm({
             </InputShell>
           </div>
           <div className="md:col-span-2">
+            <InputShell
+              label="접수 항목 / 준비 서류"
+              helper="한 줄에 하나씩 적습니다. 예: 참가 신청서, 재학증명서, 유튜브 링크, 기획서 PDF"
+            >
+              <textarea
+                name="submissionItems"
+                className={`${fieldClassName} min-h-32`}
+                placeholder={"참가 신청서\n재학증명서\n작품 링크"}
+                defaultValue={joinSubmissionItems(initialData?.submissionItems)}
+              />
+            </InputShell>
+          </div>
+          <div className="md:col-span-2">
+            <InputShell
+              label="심사 기준"
+              helper="한 줄에 `항목 | 비중 | 설명` 형식으로 적습니다. 예: 창의성 | 20 | 아이디어 차별성"
+            >
+              <textarea
+                name="judgingCriteria"
+                className={`${fieldClassName} min-h-32`}
+                placeholder={"주제 적합성 | 20 | 공모 주제와의 연결성\n창의성 | 20 | 아이디어 차별성"}
+                defaultValue={joinJudgingCriteria(initialData?.judgingCriteria)}
+              />
+            </InputShell>
+          </div>
+          <div className="md:col-span-2">
+            <InputShell
+              label="단계별 일정"
+              helper="한 줄에 `라벨 | 날짜 | 메모` 형식으로 적습니다. 예: 접수 마감 | 2026-04-03 | 10:00까지"
+            >
+              <textarea
+                name="stageSchedule"
+                className={`${fieldClassName} min-h-32`}
+                placeholder={"접수 시작 | 2026-03-03 |\n접수 마감 | 2026-04-03 | 10:00까지\n수상자 발표 | 2026-04-10 | 개별 안내"}
+                defaultValue={joinStageSchedule(initialData?.stageSchedule)}
+              />
+            </InputShell>
+          </div>
+          <div className="md:col-span-2">
+            <InputShell label="과거 수상작 / 이전 우승자 정보">
+              <textarea
+                name="pastWinners"
+                className={`${fieldClassName} min-h-28`}
+                placeholder="공고에 과거 수상작 링크나 우승 사례가 있으면 간단히 정리합니다."
+                defaultValue={initialData?.pastWinners ?? ""}
+              />
+            </InputShell>
+          </div>
+          <div className="md:col-span-2">
             <InputShell label="주요 도구 / 스택" helper="공고 본문에서 요구되거나 잘 맞는 도구를 자동으로 제안합니다.">
               <input
                 name="toolsAllowed"
@@ -1247,8 +1367,8 @@ export function ContestForm({
         </div>
 
         <div className="mt-6 rounded-[22px] border border-[var(--border)] bg-[var(--background-strong)] px-4 py-4 text-sm leading-6 text-[var(--muted)]">
-          아래에 보이지 않는 참가 조건, 팀 구성, 난이도, 데이터셋, 수집 소스 정보는 자동 추출값을 그대로 저장합니다.
-          필요한 경우에만 수정 화면에서 다시 다듬으면 됩니다.
+          참가 조건, 팀 구성, 난이도, 데이터셋, 수집 소스 정보는 자동 추출값을 그대로 저장합니다.
+          위에 보이는 항목만 확인해도 지원 판단용 상세 페이지를 꽤 촘촘하게 채울 수 있습니다.
         </div>
 
         <div className="mt-6">

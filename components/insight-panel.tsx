@@ -20,6 +20,16 @@ function splitJudgingFocus(text: string) {
     .filter(Boolean);
 }
 
+function buildJudgingPoints(contest: Contest) {
+  if (contest.judgingCriteria?.length) {
+    return contest.judgingCriteria.map((criterion) =>
+      criterion.weight ? `${criterion.label} ${criterion.weight}%` : criterion.label,
+    );
+  }
+
+  return splitJudgingFocus(contest.analysis.judgingFocus);
+}
+
 function buildStackSignals(contest: Contest) {
   return Array.from(new Set([...contest.toolsAllowed, ...contest.aiCategories.map(formatCategory), ...contest.tags])).slice(0, 6);
 }
@@ -42,6 +52,10 @@ function buildChecklist(contest: Contest) {
 
   if (contest.datasetProvided) {
     baseItems.push("제공 자료와 데이터셋의 사용 범위, 저작권 조건, 평가 기준을 먼저 읽기");
+  }
+
+  if (contest.submissionItems?.length) {
+    baseItems.push(`접수 항목 ${contest.submissionItems.slice(0, 2).join(", ")}를 미리 준비하기`);
   }
 
   if ((getDaysUntil(contest.deadline) ?? 99) <= 7) {
@@ -84,7 +98,7 @@ function StatusNotice({ contest }: { contest: Contest }) {
 export function InsightPanel({ contest }: InsightPanelProps) {
   const { analysis } = contest;
   const strategyLines = splitReportLines(analysis.winStrategy);
-  const judgingPoints = splitJudgingFocus(analysis.judgingFocus);
+  const judgingPoints = buildJudgingPoints(contest);
   const stackSignals = buildStackSignals(contest);
   const checklist = buildChecklist(contest);
 

@@ -1,6 +1,14 @@
 import { Client } from "pg";
 
-import type { ContestCategory, ContestDifficulty, ContestMode, ContestStatus } from "../types/contest";
+import type {
+  ContestCategory,
+  ContestDifficulty,
+  ContestJudgingCriterion,
+  ContestMode,
+  ContestOrganizerType,
+  ContestStage,
+  ContestStatus,
+} from "../types/contest";
 import { generateContestAnalysis, type ContestDraft } from "../lib/server/contest-analysis";
 
 type PendingContestRow = {
@@ -8,6 +16,7 @@ type PendingContestRow = {
   slug: string;
   title: string;
   organizer: string;
+  organizer_type: ContestOrganizerType | null;
   short_description: string | null;
   description: string;
   url: string;
@@ -30,6 +39,10 @@ type PendingContestRow = {
   prize_pool_krw: number | null;
   prize_summary: string | null;
   submission_format: string | null;
+  submission_items: string[] | null;
+  judging_criteria: ContestJudgingCriterion[] | null;
+  stage_schedule: ContestStage[] | null;
+  past_winners: string | null;
   tools_allowed: string[] | null;
   dataset_provided: boolean;
   dataset_summary: string | null;
@@ -43,6 +56,7 @@ function toContestDraft(row: PendingContestRow): ContestDraft {
     slug: row.slug,
     title: row.title,
     organizer: row.organizer,
+    organizerType: row.organizer_type,
     shortDescription: row.short_description,
     description: row.description,
     url: row.url,
@@ -65,6 +79,10 @@ function toContestDraft(row: PendingContestRow): ContestDraft {
     prizePoolKrw: row.prize_pool_krw,
     prizeSummary: row.prize_summary,
     submissionFormat: row.submission_format,
+    submissionItems: row.submission_items ?? [],
+    judgingCriteria: row.judging_criteria ?? [],
+    stageSchedule: row.stage_schedule ?? [],
+    pastWinners: row.past_winners,
     toolsAllowed: row.tools_allowed ?? [],
     datasetProvided: row.dataset_provided,
     datasetSummary: row.dataset_summary,
@@ -98,6 +116,7 @@ async function main() {
           contests.slug,
           contests.title,
           contests.organizer,
+          contests.organizer_type,
           contests.short_description,
           contests.description,
           contests.url,
@@ -120,6 +139,10 @@ async function main() {
           contests.prize_pool_krw,
           contests.prize_summary,
           contests.submission_format,
+          contests.submission_items,
+          contests.judging_criteria,
+          contests.stage_schedule,
+          contests.past_winners,
           contests.tools_allowed,
           contests.dataset_provided,
           contests.dataset_summary,

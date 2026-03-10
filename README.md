@@ -2,12 +2,34 @@
 
 Luma-like AI contest discovery UI with a Supabase-backed data model for manual ingestion and GPT-generated contest analysis.
 
+## Live
+
+- App: [ai-contest-cloud.vercel.app](https://ai-contest-cloud.vercel.app)
+- Admin: [ai-contest-cloud.vercel.app/admin/login](https://ai-contest-cloud.vercel.app/admin/login)
+
 ## Stack
 
 - Next.js 16 App Router
 - React 19
 - Tailwind CSS 4
 - Supabase (`contests`, `contest_badges`, `contest_ai_analysis`)
+
+## Current Contest Lineup
+
+README also works as a lightweight public lineup page, similar to curated event repos.  
+The latest details always live in the app, but this section gives a quick snapshot of the contests currently surfaced by the platform.
+
+| Deadline | Contest | Organizer | Prize | Category |
+| --- | --- | --- | --- | --- |
+| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / Agents, AI Infra |
+| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | ₩21,750,000 | Multimodal AI, Generative AI |
+| 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | ₩8,700,000 | LLM / Agents, AI for Social Good |
+| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | ₩17,400,000 | Robotics, AI Infra |
+| 2026-03-28 | [제1회 꿈꾸는 아리랑 AI 뮤직비디오 공모전](https://ai-contest-cloud.vercel.app/contests/1-ai) | 함께봄 주식회사 | ₩1,450,000 | Generative AI |
+| 2026-04-03 | [폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전](https://ai-contest-cloud.vercel.app/contests/gti-ai) | 이오스커뮤니케이션스 | ₩580,000 | Generative AI |
+| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | ₩36,250,000 | Computer Vision, AI for Social Good |
+| 2026-04-12 | [Healthcare AI Signal Cup](https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup) | MediSignal Foundation | ₩43,500,000 | Data Science, AI for Social Good |
+| 2026-04-30 | [2026 청년 AI 디자인 공모전](https://ai-contest-cloud.vercel.app/contests/2026-ai) | 서초구 | ₩12,800,000 | Generative AI |
 
 ## Local Run
 

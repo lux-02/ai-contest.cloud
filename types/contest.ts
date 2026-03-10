@@ -25,6 +25,26 @@ export const difficultyOptions = [
   { id: "advanced", label: "상급" },
 ] as const;
 
+export const organizerTypeOptions = [
+  { id: "enterprise", label: "대기업" },
+  { id: "government", label: "정부·공공기관" },
+  { id: "foundation", label: "유명 재단" },
+  { id: "university", label: "대학교" },
+  { id: "startup", label: "스타트업" },
+  { id: "community", label: "커뮤니티" },
+] as const;
+
+export const contestSortOptions = [
+  { id: "deadline", label: "마감임박순" },
+  { id: "prize", label: "상금순" },
+  { id: "popular", label: "인기순" },
+] as const;
+
+export const contestTeamFilterOptions = [
+  { id: "individual", label: "개인전" },
+  { id: "team", label: "팀전" },
+] as const;
+
 export const contestTrackingStatusOptions = [
   { id: "saved", label: "Saved" },
   { id: "planning", label: "Planning" },
@@ -34,6 +54,9 @@ export const contestTrackingStatusOptions = [
 export type ContestBadge = (typeof contestBadgeOptions)[number]["id"];
 export type ContestCategory = (typeof contestCategoryOptions)[number]["id"];
 export type ContestDifficulty = (typeof difficultyOptions)[number]["id"];
+export type ContestOrganizerType = (typeof organizerTypeOptions)[number]["id"];
+export type ContestSortOption = (typeof contestSortOptions)[number]["id"];
+export type ContestTeamFilter = (typeof contestTeamFilterOptions)[number]["id"];
 export type ContestTrackingStatus = (typeof contestTrackingStatusOptions)[number]["id"];
 export type ContestMode = "online" | "offline" | "hybrid";
 export type ContestStatus = "draft" | "published" | "archived";
@@ -41,7 +64,20 @@ export type ContestAnalysisStatus = "pending" | "completed" | "failed";
 
 export type ContestBadgeMeta = (typeof contestBadgeOptions)[number];
 export type ContestCategoryMeta = (typeof contestCategoryOptions)[number];
+export type ContestOrganizerTypeMeta = (typeof organizerTypeOptions)[number];
 export type ContestTrackingStatusMeta = (typeof contestTrackingStatusOptions)[number];
+
+export interface ContestStage {
+  label: string;
+  date?: string | null;
+  note?: string | null;
+}
+
+export interface ContestJudgingCriterion {
+  label: string;
+  weight?: number | null;
+  description?: string | null;
+}
 
 export interface ContestAnalysis {
   summary: string;
@@ -59,6 +95,7 @@ export interface Contest {
   slug: string;
   title: string;
   organizer: string;
+  organizerType?: ContestOrganizerType;
   shortDescription: string;
   description: string;
   url: string;
@@ -81,12 +118,18 @@ export interface Contest {
   prizePoolKrw?: number;
   prizeSummary?: string;
   submissionFormat?: string;
+  submissionItems?: string[];
+  judgingCriteria?: ContestJudgingCriterion[];
+  stageSchedule?: ContestStage[];
+  pastWinners?: string;
   toolsAllowed: string[];
   datasetProvided: boolean;
   datasetSummary?: string;
   aiCategories: ContestCategory[];
   tags: string[];
   badges: ContestBadge[];
+  viewCount?: number;
+  applyCount?: number;
   status: ContestStatus;
   analysis: ContestAnalysis;
 }
@@ -147,6 +190,9 @@ export interface ContestFilters {
   category?: ContestCategory;
   badge?: ContestBadge;
   difficulty?: ContestDifficulty;
+  organizerType?: ContestOrganizerType;
+  teamType?: ContestTeamFilter;
+  sort?: ContestSortOption;
 }
 
 export function isContestCategory(value?: string): value is ContestCategory {
@@ -159,6 +205,18 @@ export function isContestBadge(value?: string): value is ContestBadge {
 
 export function isContestDifficulty(value?: string): value is ContestDifficulty {
   return difficultyOptions.some((option) => option.id === value);
+}
+
+export function isContestOrganizerType(value?: string): value is ContestOrganizerType {
+  return organizerTypeOptions.some((option) => option.id === value);
+}
+
+export function isContestSortOption(value?: string): value is ContestSortOption {
+  return contestSortOptions.some((option) => option.id === value);
+}
+
+export function isContestTeamFilter(value?: string): value is ContestTeamFilter {
+  return contestTeamFilterOptions.some((option) => option.id === value);
 }
 
 export function getBadgeMeta(badge: ContestBadge): ContestBadgeMeta {
@@ -177,6 +235,15 @@ export function getCategoryMeta(category: ContestCategory): ContestCategoryMeta 
   }
 
   return categoryMeta;
+}
+
+export function getOrganizerTypeMeta(organizerType: ContestOrganizerType): ContestOrganizerTypeMeta {
+  const organizerTypeMeta = organizerTypeOptions.find((option) => option.id === organizerType);
+  if (!organizerTypeMeta) {
+    throw new Error(`Unknown organizer type: ${organizerType}`);
+  }
+
+  return organizerTypeMeta;
 }
 
 export function isContestTrackingStatus(value?: string): value is ContestTrackingStatus {

@@ -3,9 +3,13 @@ import "server-only";
 import {
   contestCategoryOptions,
   difficultyOptions,
+  organizerTypeOptions,
   type ContestCategory,
   type ContestDifficulty,
+  type ContestJudgingCriterion,
   type ContestMode,
+  type ContestOrganizerType,
+  type ContestStage,
 } from "@/types/contest";
 
 export type ContestExtractionInput = {
@@ -16,6 +20,7 @@ export type ContestExtractionInput = {
 export type ExtractedContestFields = {
   title: string | null;
   organizer: string | null;
+  organizerType: ContestOrganizerType | null;
   shortDescription: string | null;
   description: string | null;
   url: string | null;
@@ -37,6 +42,10 @@ export type ExtractedContestFields = {
   prizePoolKrw: number | null;
   prizeSummary: string | null;
   submissionFormat: string | null;
+  submissionItems: string[];
+  judgingCriteria: ContestJudgingCriterion[];
+  stageSchedule: ContestStage[];
+  pastWinners: string | null;
   toolsAllowed: string[];
   datasetProvided: boolean | null;
   datasetSummary: string | null;
@@ -85,6 +94,7 @@ function buildEmptyFields(input: ContestExtractionInput): ExtractedContestFields
   return {
     title: null,
     organizer: null,
+    organizerType: null,
     shortDescription: null,
     description: input.rawText.trim() || null,
     url: input.sourceUrl?.trim() || null,
@@ -106,6 +116,10 @@ function buildEmptyFields(input: ContestExtractionInput): ExtractedContestFields
     prizePoolKrw: null,
     prizeSummary: null,
     submissionFormat: null,
+    submissionItems: [],
+    judgingCriteria: [],
+    stageSchedule: [],
+    pastWinners: null,
     toolsAllowed: [],
     datasetProvided: null,
     datasetSummary: null,
@@ -123,6 +137,11 @@ function buildPreview(fields: ExtractedContestFields): ContestExtractionPreviewI
     { label: "제목 후보", value: fields.title || "직접 확인 필요" },
     { label: "한 줄 소개", value: fields.shortDescription || "직접 확인 필요" },
     { label: "마감일", value: fields.deadline || "직접 확인 필요" },
+    {
+      label: "주최 성격",
+      value:
+        organizerTypeOptions.find((option) => option.id === fields.organizerType)?.label ?? "직접 확인 필요",
+    },
     { label: "신청 링크", value: fields.applyUrl || fields.url || "직접 확인 필요" },
     {
       label: "AI 카테고리",
@@ -174,6 +193,62 @@ function normalizeCategories(value: unknown) {
     (category): category is ContestCategory =>
       typeof category === "string" && contestCategoryOptions.some((option) => option.id === category),
   );
+}
+
+function normalizeOrganizerType(value: unknown) {
+  return organizerTypeOptions.some((option) => option.id === value) ? (value as ContestOrganizerType) : null;
+}
+
+function normalizeJudgingCriteria(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const label = normalizeString((item as Record<string, unknown>).label);
+
+      if (!label) {
+        return null;
+      }
+
+      return {
+        label,
+        weight: normalizeNumber((item as Record<string, unknown>).weight),
+        description: normalizeString((item as Record<string, unknown>).description),
+      } satisfies ContestJudgingCriterion;
+    })
+    .flatMap((item) => (item ? [item] : []));
+}
+
+function normalizeStageSchedule(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const label = normalizeString((item as Record<string, unknown>).label);
+
+      if (!label) {
+        return null;
+      }
+
+      return {
+        label,
+        date: normalizeString((item as Record<string, unknown>).date),
+        note: normalizeString((item as Record<string, unknown>).note),
+      } satisfies ContestStage;
+    })
+    .flatMap((item) => (item ? [item] : []));
 }
 
 function deriveFallbackCategories(text: string) {
@@ -290,10 +365,13 @@ function normalizeFields(input: ContestExtractionInput, payload: Record<string, 
   const maxTeamSize = normalizeNumber(payload.maxTeamSize);
   const toolsAllowed = sanitizeToolsAllowed(normalizeStringArray(payload.toolsAllowed));
   const aiCategories = normalizeCategories(payload.aiCategories);
+  const judgingCriteria = normalizeJudgingCriteria(payload.judgingCriteria);
+  const stageSchedule = normalizeStageSchedule(payload.stageSchedule);
 
   return {
     title: normalizeString(payload.title),
     organizer: normalizeString(payload.organizer),
+    organizerType: normalizeOrganizerType(payload.organizerType),
     shortDescription: normalizeString(payload.shortDescription),
     description: normalizeString(payload.description) || input.rawText.trim() || null,
     url,
@@ -315,6 +393,10 @@ function normalizeFields(input: ContestExtractionInput, payload: Record<string, 
     prizePoolKrw: normalizeNumber(payload.prizePoolKrw),
     prizeSummary: normalizeString(payload.prizeSummary),
     submissionFormat: normalizeString(payload.submissionFormat),
+    submissionItems: normalizeStringArray(payload.submissionItems),
+    judgingCriteria,
+    stageSchedule,
+    pastWinners: normalizeString(payload.pastWinners),
     toolsAllowed: toolsAllowed.length > 0 ? toolsAllowed : deriveFallbackToolsAllowed(input.rawText),
     datasetProvided: normalizeBoolean(payload.datasetProvided),
     datasetSummary: normalizeString(payload.datasetSummary),
@@ -364,6 +446,7 @@ function getExtractionPrompt(input: ContestExtractionInput) {
     "Return facts only. If a field is not stated or cannot be inferred with high confidence, return null or an empty array.",
     "Never invent URLs, dates, or prizes.",
     "Use concise Korean for title, shortDescription, description, prizeSummary, submissionFormat, and eligibilityText.",
+    `- organizerType: ${JSON.stringify(organizerTypeOptions.map((option) => option.id))}`,
     "Use these exact enums when available:",
     `- participationMode: ${JSON.stringify(["online", "offline", "hybrid"])}`,
     `- difficulty: ${JSON.stringify(difficultyOptions.map((option) => option.id))}`,
@@ -375,6 +458,9 @@ function getExtractionPrompt(input: ContestExtractionInput) {
     "For prizePoolKrw, return the total comparable cash prize in Korean won when explicit. Convert 만원/억원 into integer won. If only travel, goods, experience, or mixed non-cash rewards are listed, you may return null.",
     "Populate toolsAllowed with 3 to 6 concise tool or stack signals that matter for submission. Prefer explicit tools; otherwise use conservative stack labels like 생성형 AI, 영상 생성 AI, PyTorch, Supabase.",
     "Do not include submission channels such as Google Form, forms.gle, YouTube upload, Notion, or generic links inside toolsAllowed.",
+    "submissionItems should be the application or submission checklist that a student needs to prepare before applying.",
+    "judgingCriteria should capture visible judging labels and weights when explicit.",
+    "stageSchedule should include milestone labels like 접수 마감, 본선 발표, 수상자 발표 and their dates when visible.",
     "Write reviewNotes in concise Korean.",
     "Add reviewNotes for anything inferred, ambiguous, or worth checking before publishing.",
     "",
@@ -410,6 +496,9 @@ export async function extractContestFields(input: ContestExtractionInput): Promi
             properties: {
               title: nullableStringSchema("Public-facing contest title in Korean."),
               organizer: nullableStringSchema("Organizer or host name."),
+              organizerType: {
+                anyOf: [{ type: "string", enum: organizerTypeOptions.map((option) => option.id) }, { type: "null" }],
+              },
               shortDescription: nullableStringSchema("One-line teaser in Korean, around 50-90 characters."),
               description: nullableStringSchema("Cleaned Korean summary for admin storage."),
               url: nullableStringSchema("Primary detail page URL."),
@@ -438,6 +527,37 @@ export async function extractContestFields(input: ContestExtractionInput): Promi
               prizePoolKrw: nullableNumberSchema("Total comparable prize pool in Korean won when explicit."),
               prizeSummary: nullableStringSchema("Korean prize summary."),
               submissionFormat: nullableStringSchema("Korean submission requirement summary."),
+              submissionItems: {
+                type: "array",
+                items: { type: "string" },
+              },
+              judgingCriteria: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    label: { type: "string" },
+                    weight: nullableNumberSchema("Weight percentage when explicit."),
+                    description: nullableStringSchema("Short explanation."),
+                  },
+                  required: ["label", "weight", "description"],
+                },
+              },
+              stageSchedule: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    label: { type: "string" },
+                    date: nullableStringSchema("Milestone date in YYYY-MM-DD."),
+                    note: nullableStringSchema("Short note or time."),
+                  },
+                  required: ["label", "date", "note"],
+                },
+              },
+              pastWinners: nullableStringSchema("Past winners or prior winning work summary if stated."),
               toolsAllowed: {
                 type: "array",
                 items: { type: "string" },
@@ -460,6 +580,7 @@ export async function extractContestFields(input: ContestExtractionInput): Promi
             required: [
               "title",
               "organizer",
+              "organizerType",
               "shortDescription",
               "description",
               "url",
@@ -481,6 +602,10 @@ export async function extractContestFields(input: ContestExtractionInput): Promi
               "prizePoolKrw",
               "prizeSummary",
               "submissionFormat",
+              "submissionItems",
+              "judgingCriteria",
+              "stageSchedule",
+              "pastWinners",
               "toolsAllowed",
               "datasetProvided",
               "datasetSummary",

@@ -5,10 +5,16 @@ import { cn } from "@/lib/utils";
 import {
   contestBadgeOptions,
   contestCategoryOptions,
+  contestSortOptions,
+  contestTeamFilterOptions,
   difficultyOptions,
+  organizerTypeOptions,
   type ContestBadge,
   type ContestCategory,
   type ContestDifficulty,
+  type ContestOrganizerType,
+  type ContestSortOption,
+  type ContestTeamFilter,
 } from "@/types/contest";
 
 interface FilterBarProps {
@@ -16,6 +22,9 @@ interface FilterBarProps {
   selectedCategory?: ContestCategory;
   selectedBadge?: ContestBadge;
   selectedDifficulty?: ContestDifficulty;
+  selectedOrganizerType?: ContestOrganizerType;
+  selectedTeamType?: ContestTeamFilter;
+  selectedSort?: ContestSortOption;
   total: number;
 }
 
@@ -24,11 +33,17 @@ function buildHref({
   category,
   badge,
   difficulty,
+  organizerType,
+  teamType,
+  sort,
 }: {
   query?: string;
   category?: ContestCategory;
   badge?: ContestBadge;
   difficulty?: ContestDifficulty;
+  organizerType?: ContestOrganizerType;
+  teamType?: ContestTeamFilter;
+  sort?: ContestSortOption;
 }) {
   const params = new URLSearchParams();
 
@@ -46,6 +61,18 @@ function buildHref({
 
   if (difficulty) {
     params.set("difficulty", difficulty);
+  }
+
+  if (organizerType) {
+    params.set("organizerType", organizerType);
+  }
+
+  if (teamType) {
+    params.set("teamType", teamType);
+  }
+
+  if (sort && sort !== "deadline") {
+    params.set("sort", sort);
   }
 
   const serializedParams = params.toString();
@@ -77,14 +104,36 @@ function FilterChip({
   );
 }
 
-export function FilterBar({ searchQuery, selectedCategory, selectedBadge, selectedDifficulty, total }: FilterBarProps) {
-  const hasExtraFilters = Boolean(selectedBadge || selectedDifficulty);
-  const hasFilters = Boolean(searchQuery || selectedCategory || selectedBadge || selectedDifficulty);
+export function FilterBar({
+  searchQuery,
+  selectedCategory,
+  selectedBadge,
+  selectedDifficulty,
+  selectedOrganizerType,
+  selectedTeamType,
+  selectedSort,
+  total,
+}: FilterBarProps) {
+  const hasExtraFilters = Boolean(
+    selectedBadge || selectedDifficulty || selectedOrganizerType || selectedTeamType || (selectedSort && selectedSort !== "deadline"),
+  );
+  const hasFilters = Boolean(
+    searchQuery ||
+      selectedCategory ||
+      selectedBadge ||
+      selectedDifficulty ||
+      selectedOrganizerType ||
+      selectedTeamType ||
+      (selectedSort && selectedSort !== "deadline"),
+  );
   const activeFilters = [
     searchQuery ? `검색: ${searchQuery}` : null,
     selectedCategory ? contestCategoryOptions.find((option) => option.id === selectedCategory)?.label : null,
     selectedBadge ? contestBadgeOptions.find((option) => option.id === selectedBadge)?.label : null,
     selectedDifficulty ? difficultyOptions.find((option) => option.id === selectedDifficulty)?.label : null,
+    selectedOrganizerType ? organizerTypeOptions.find((option) => option.id === selectedOrganizerType)?.label : null,
+    selectedTeamType ? contestTeamFilterOptions.find((option) => option.id === selectedTeamType)?.label : null,
+    selectedSort && selectedSort !== "deadline" ? contestSortOptions.find((option) => option.id === selectedSort)?.label : null,
   ].flatMap((item) => (item ? [item] : []));
 
   return (
@@ -99,7 +148,7 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
           <p className="text-sm text-[var(--muted)]">{total}개 대회 표시 중</p>
         </div>
 
-        <form action="/contests" className="flex flex-col gap-3">
+        <form action="/contests" className="flex flex-col gap-5">
           <label htmlFor="contest-search" className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
             검색
           </label>
@@ -114,66 +163,78 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
               className="h-full w-full bg-transparent text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
             />
           </div>
-          {selectedCategory ? <input type="hidden" name="category" value={selectedCategory} /> : null}
-          {selectedBadge ? <input type="hidden" name="badge" value={selectedBadge} /> : null}
-          {selectedDifficulty ? <input type="hidden" name="difficulty" value={selectedDifficulty} /> : null}
-          <button type="submit" className="secondary-button w-full">
-            검색 적용
-          </button>
-        </form>
 
-        {hasFilters ? (
-          <div className="flex flex-wrap gap-2">
-            {activeFilters.map((filter) => (
-              <span key={filter} className="signal-chip">
-                <span className="signal-dot" />
-                {filter}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">AI 분야</div>
-          <div className="-mx-1 overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-2 px-1">
-              <FilterChip
-                href={buildHref({ query: searchQuery, badge: selectedBadge, difficulty: selectedDifficulty })}
-                isActive={!selectedCategory}
-              >
-                전체
-              </FilterChip>
-              {contestCategoryOptions.map((category) => (
-                <FilterChip
-                  key={category.id}
-                  href={buildHref({
-                    query: searchQuery,
-                    category: category.id,
-                    badge: selectedBadge,
-                    difficulty: selectedDifficulty,
-                  })}
-                  isActive={selectedCategory === category.id}
-                >
-                  {category.label}
-                </FilterChip>
+          {hasFilters ? (
+            <div className="flex flex-wrap gap-2">
+              {activeFilters.map((filter) => (
+                <span key={filter} className="signal-chip">
+                  <span className="signal-dot" />
+                  {filter}
+                </span>
               ))}
             </div>
-          </div>
-        </div>
+          ) : null}
 
-        <details
-          className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.02)] px-4 py-3"
-          open={hasExtraFilters}
-        >
-          <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--foreground)]">
-            추가 필터 {hasExtraFilters ? "적용됨" : ""}
-          </summary>
-          <div className="mt-4 space-y-4">
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">AI 분야</div>
+            <div className="-mx-1 overflow-x-auto pb-1">
+              <div className="flex min-w-max gap-2 px-1">
+                <FilterChip
+                  href={buildHref({
+                    query: searchQuery,
+                    badge: selectedBadge,
+                    difficulty: selectedDifficulty,
+                    organizerType: selectedOrganizerType,
+                    teamType: selectedTeamType,
+                    sort: selectedSort,
+                  })}
+                  isActive={!selectedCategory}
+                >
+                  전체
+                </FilterChip>
+                {contestCategoryOptions.map((category) => (
+                  <FilterChip
+                    key={category.id}
+                    href={buildHref({
+                      query: searchQuery,
+                      category: category.id,
+                      badge: selectedBadge,
+                      difficulty: selectedDifficulty,
+                      organizerType: selectedOrganizerType,
+                      teamType: selectedTeamType,
+                      sort: selectedSort,
+                    })}
+                    isActive={selectedCategory === category.id}
+                  >
+                    {category.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {selectedCategory ? <input type="hidden" name="category" value={selectedCategory} /> : null}
+
+          <details
+            className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.02)] px-4 py-3"
+            open={hasExtraFilters}
+          >
+            <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--foreground)]">
+              추가 필터 {hasExtraFilters ? "적용됨" : ""}
+            </summary>
+            <div className="mt-4 space-y-4">
             <div className="space-y-3">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">배지</div>
               <div className="flex flex-wrap gap-2">
                 <FilterChip
-                  href={buildHref({ query: searchQuery, category: selectedCategory, difficulty: selectedDifficulty })}
+                  href={buildHref({
+                    query: searchQuery,
+                    category: selectedCategory,
+                    difficulty: selectedDifficulty,
+                    organizerType: selectedOrganizerType,
+                    teamType: selectedTeamType,
+                    sort: selectedSort,
+                  })}
                   isActive={!selectedBadge}
                 >
                   전체
@@ -186,6 +247,9 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
                       category: selectedCategory,
                       badge: badge.id,
                       difficulty: selectedDifficulty,
+                      organizerType: selectedOrganizerType,
+                      teamType: selectedTeamType,
+                      sort: selectedSort,
                     })}
                     isActive={selectedBadge === badge.id}
                   >
@@ -199,7 +263,14 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">난도</div>
               <div className="flex flex-wrap gap-2">
                 <FilterChip
-                  href={buildHref({ query: searchQuery, category: selectedCategory, badge: selectedBadge })}
+                  href={buildHref({
+                    query: searchQuery,
+                    category: selectedCategory,
+                    badge: selectedBadge,
+                    organizerType: selectedOrganizerType,
+                    teamType: selectedTeamType,
+                    sort: selectedSort,
+                  })}
                   isActive={!selectedDifficulty}
                 >
                   전체
@@ -212,6 +283,9 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
                       category: selectedCategory,
                       badge: selectedBadge,
                       difficulty: difficulty.id,
+                      organizerType: selectedOrganizerType,
+                      teamType: selectedTeamType,
+                      sort: selectedSort,
                     })}
                     isActive={selectedDifficulty === difficulty.id}
                   >
@@ -220,8 +294,56 @@ export function FilterBar({ searchQuery, selectedCategory, selectedBadge, select
                 ))}
               </div>
             </div>
-          </div>
-        </details>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">정렬</span>
+                <select name="sort" defaultValue={selectedSort ?? "deadline"} className="w-full rounded-[16px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">
+                  {contestSortOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">주최 성격</span>
+                <select name="organizerType" defaultValue={selectedOrganizerType ?? ""} className="w-full rounded-[16px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">
+                  <option value="">전체</option>
+                  {organizerTypeOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">개인 / 팀</span>
+                <select name="teamType" defaultValue={selectedTeamType ?? ""} className="w-full rounded-[16px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">
+                  <option value="">전체</option>
+                  {contestTeamFilterOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="flex justify-end">
+              <button type="submit" className="secondary-button">
+                필터 적용
+              </button>
+            </div>
+            </div>
+          </details>
+
+          <button type="submit" className="secondary-button w-full">
+            검색 적용
+          </button>
+        </form>
 
         {hasFilters ? (
           <Link href="/contests" scroll={false} className="secondary-button w-full">

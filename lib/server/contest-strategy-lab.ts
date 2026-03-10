@@ -9,6 +9,10 @@ const PROMPT_CONTEST_DESCRIPTION_LIMIT = 1500;
 const PROMPT_SOURCE_CONTENT_LIMIT = 1200;
 const PROMPT_SOURCE_LIMIT = 4;
 
+type StrategyLabOptions = {
+  userIdea?: string;
+};
+
 function buildPendingResult(): ContestStrategyLabResult {
   return {
     overview: "브레인스토밍 생성 대기 중",
@@ -85,6 +89,10 @@ function summarizeContestForPrompt(contest: Contest) {
     teamAllowed: contest.teamAllowed,
     prizeSummary: contest.prizeSummary ?? null,
     submissionFormat: contest.submissionFormat ?? null,
+    submissionItems: contest.submissionItems ?? [],
+    judgingCriteria: contest.judgingCriteria ?? [],
+    stageSchedule: contest.stageSchedule ?? [],
+    pastWinners: contest.pastWinners ?? null,
     toolsAllowed: contest.toolsAllowed,
     categories: contest.aiCategories,
     tags: contest.tags,
@@ -120,13 +128,19 @@ function pickPromptSources(sources: CollectedStrategySource[]) {
   }));
 }
 
-function getStrategyLabPrompt(contest: Contest, sources: CollectedStrategySource[]) {
+function getStrategyLabPrompt(contest: Contest, sources: CollectedStrategySource[], options: StrategyLabOptions = {}) {
+  const userIdea = options.userIdea?.trim();
+
   return [
     "You are an AI contest strategist for Korean university students.",
     "Generate a practical Korean brainstorming pack for this contest.",
     "All string values in the JSON must be written in Korean.",
     "Use Korean even when the contest brand name is in English.",
     "Base your reasoning only on the contest data and existing AI analysis provided.",
+    "When submissionItems or judgingCriteria exist, reflect them directly in the planning advice and draft.",
+    userIdea
+      ? "The user already has a draft idea. Strengthen it to fit the judging criteria, submission requirements, and winning patterns instead of ignoring it."
+      : "If there is no user idea, propose the most competitive directions from scratch.",
     "When a sentence relies on a collected source, append the source labels such as [S1] or [S2].",
     "Use only the provided source labels. Do not invent new labels.",
     "Do not claim that you researched anything beyond the provided sources.",
@@ -142,6 +156,7 @@ function getStrategyLabPrompt(contest: Contest, sources: CollectedStrategySource
     "7. draftSections: 5 sections for a proposal or strategy draft",
     "",
     `Prompt version: ${contestStrategyLabPromptVersion}`,
+    userIdea ? `User idea:\n${userIdea}` : "User idea:\n없음",
     "Contest JSON:",
     JSON.stringify(summarizeContestForPrompt(contest), null, 2),
     "",
@@ -153,6 +168,7 @@ function getStrategyLabPrompt(contest: Contest, sources: CollectedStrategySource
 export async function generateContestStrategyLab(
   contest: Contest,
   sources: CollectedStrategySource[],
+  options: StrategyLabOptions = {},
 ): Promise<ContestStrategyLabResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
@@ -252,7 +268,7 @@ export async function generateContestStrategyLab(
           },
           {
             role: "user",
-            content: getStrategyLabPrompt(contest, sources),
+            content: getStrategyLabPrompt(contest, sources, options),
           },
         ],
       }),

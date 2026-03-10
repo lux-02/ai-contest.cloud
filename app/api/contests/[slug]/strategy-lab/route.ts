@@ -21,7 +21,8 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { refresh?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { refresh?: boolean; userIdea?: string };
+    const userIdea = body.userIdea?.trim() || undefined;
     const { slug } = await context.params;
     const contest = await getContestBySlug(slug);
 
@@ -31,8 +32,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const stored = await getStoredStrategyReport(contest.id);
 
-    if (!body.refresh) {
-
+    if (!body.refresh && !userIdea) {
       if (stored?.status === "completed") {
         return NextResponse.json(stored);
       }
@@ -41,7 +41,7 @@ export async function POST(request: Request, context: RouteContext) {
     let sources: CollectedStrategySource[];
     let result: ContestStrategyLabResult;
 
-    if (canUseRemoteContestStrategyService()) {
+    if (canUseRemoteContestStrategyService() && !userIdea) {
       try {
         const remote = await generateContestStrategyWithRemoteService(contest);
         sources = remote.sources;
@@ -49,11 +49,11 @@ export async function POST(request: Request, context: RouteContext) {
       } catch (error) {
         console.error("[strategy-lab] remote service failed, falling back to local pipeline", error);
         sources = await collectContestSources(contest);
-        result = await generateContestStrategyLab(contest, sources);
+        result = await generateContestStrategyLab(contest, sources, { userIdea });
       }
     } else {
       sources = await collectContestSources(contest);
-      result = await generateContestStrategyLab(contest, sources);
+      result = await generateContestStrategyLab(contest, sources, { userIdea });
     }
 
     if (result.status === "failed") {
@@ -64,7 +64,9 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     try {
-      await upsertStrategyReport(contest.id, result, sources);
+      if (!userIdea) {
+        await upsertStrategyReport(contest.id, result, sources);
+      }
     } catch (error) {
       console.error("[strategy-lab] could not persist generated report", error);
       // The page can still render the in-memory result even if persistence fails.

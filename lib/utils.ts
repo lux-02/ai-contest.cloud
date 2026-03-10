@@ -5,10 +5,14 @@ import {
   getBadgeMeta,
   getCategoryMeta,
   getContestTrackingStatusMeta,
+  getOrganizerTypeMeta,
   type ContestBadge,
   type ContestCategory,
   type ContestDifficulty,
   type ContestMode,
+  type ContestOrganizerType,
+  type ContestSortOption,
+  type ContestTeamFilter,
   type ContestTrackingStatus,
 } from "@/types/contest";
 
@@ -92,10 +96,44 @@ export function formatCategory(category: ContestCategory) {
   return getCategoryMeta(category).label;
 }
 
+export function formatOrganizerType(organizerType: ContestOrganizerType) {
+  return getOrganizerTypeMeta(organizerType).label;
+}
+
 export function formatTrackingStatus(status: ContestTrackingStatus) {
   return getContestTrackingStatusMeta(status).label;
 }
 
 export function formatReminderLabel(daysBefore = 3) {
   return `마감 ${daysBefore}일 전 deadline reminder`;
+}
+
+export function formatCompactNumber(value?: number) {
+  return new Intl.NumberFormat("ko-KR", {
+    notation: value && value >= 1000 ? "compact" : "standard",
+    maximumFractionDigits: 1,
+  }).format(value ?? 0);
+}
+
+export function getContestPopularityScore(viewCount = 0, applyCount = 0) {
+  return viewCount + applyCount * 8;
+}
+
+export function formatContestSort(sort: ContestSortOption) {
+  const labels: Record<ContestSortOption, string> = {
+    deadline: "마감임박순",
+    prize: "상금순",
+    popular: "인기순",
+  };
+
+  return labels[sort];
+}
+
+export function formatContestTeamFilter(teamType: ContestTeamFilter) {
+  const labels: Record<ContestTeamFilter, string> = {
+    individual: "개인전",
+    team: "팀전",
+  };
+
+  return labels[teamType];
 }
