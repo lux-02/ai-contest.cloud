@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { FaArrowRight, FaCheck, FaChevronLeft, FaPlus, FaSpinner, FaUsers, FaXmark } from "react-icons/fa6";
+import { FaArrowRight, FaCheck, FaChevronLeft, FaChevronRight, FaPlus, FaSpinner, FaUsers, FaXmark } from "react-icons/fa6";
 
 import { decisionMatrixPresetWeights } from "@/lib/contest-ideation";
 import { cn } from "@/lib/utils";
-import type {
-  ContestDecisionMatrixPreset,
-  ContestIdeationSession,
-  ContestIdeaCandidate,
-} from "@/types/contest";
+import type { ContestDecisionMatrixPreset, ContestIdeationSession } from "@/types/contest";
 
 type VoteState = "liked" | "skipped" | "neutral";
 type UiStep = "dream" | "ideas" | "final";
@@ -35,11 +31,13 @@ type LocalStateSeed = {
   activeStep: UiStep;
   selectedWhyId: string;
   whyText: string;
-  userIdeaSeed: string;
   votes: Record<string, VoteState>;
   customIdeas: CustomIdeaDraft[];
   selectedPreset: ContestDecisionMatrixPreset;
   selectedIdeaId: string;
+  currentIdeaIndex: number;
+  isDreamEditorOpen: boolean;
+  showMatrixDetails: boolean;
 };
 
 const uiSteps: Array<{ id: UiStep; label: string; shortLabel: string; emoji: string }> = [
@@ -80,6 +78,9 @@ function formatSavedAt(value?: string | null) {
 }
 
 function createLocalStateSeed(session: ContestIdeationSession): LocalStateSeed {
+  const aiCandidates = session.ideaCandidates.filter((candidate) => candidate.source === "ai");
+  const firstNeutralIndex = aiCandidates.findIndex((candidate) => candidate.voteState === "neutral");
+
   return {
     activeStep: mapStageToUiStep(session),
     selectedWhyId: session.selectedWhyId ?? session.whyOptions[0]?.id ?? "",
@@ -89,7 +90,6 @@ function createLocalStateSeed(session: ContestIdeationSession): LocalStateSeed {
       session.whyOptions.find((option) => option.isSelected)?.body ??
       session.whyOptions[0]?.body ??
       "",
-    userIdeaSeed: session.userIdeaSeed ?? "",
     votes: Object.fromEntries(session.ideaCandidates.map((candidate) => [candidate.id, candidate.voteState])) as Record<string, VoteState>,
     customIdeas: session.ideaCandidates
       .filter((candidate) => candidate.source === "user")
@@ -100,6 +100,9 @@ function createLocalStateSeed(session: ContestIdeationSession): LocalStateSeed {
       })),
     selectedPreset: session.selectedMatrixPreset ?? session.recommendedMatrixPreset,
     selectedIdeaId: session.selectedIdeaId ?? session.topRecommendations[0]?.id ?? session.matrixRows[0]?.id ?? "",
+    currentIdeaIndex: firstNeutralIndex >= 0 ? firstNeutralIndex : 0,
+    isDreamEditorOpen: Boolean(session.whyEditedText),
+    showMatrixDetails: false,
   };
 }
 
@@ -154,6 +157,28 @@ function trimLine(text: string, fallback: string) {
   return firstLine.trim();
 }
 
+function getNextIdeaIndex(
+  candidates: ContestIdeationSession["ideaCandidates"],
+  nextVotes: Record<string, VoteState>,
+  currentIndex: number,
+) {
+  const aiCandidates = candidates.filter((candidate) => candidate.source === "ai");
+
+  if (aiCandidates.length === 0) {
+    return 0;
+  }
+
+  for (let offset = 1; offset <= aiCandidates.length; offset += 1) {
+    const nextIndex = (currentIndex + offset) % aiCandidates.length;
+
+    if ((nextVotes[aiCandidates[nextIndex]?.id] ?? "neutral") === "neutral") {
+      return nextIndex;
+    }
+  }
+
+  return Math.min(currentIndex, aiCandidates.length - 1);
+}
+
 export function ContestIdeationModal({
   slug,
   contestId,
@@ -167,11 +192,13 @@ export function ContestIdeationModal({
   const [activeStep, setActiveStep] = useState<UiStep>(initialSeed.activeStep);
   const [selectedWhyId, setSelectedWhyId] = useState(initialSeed.selectedWhyId);
   const [whyText, setWhyText] = useState(initialSeed.whyText);
-  const [userIdeaSeed, setUserIdeaSeed] = useState(initialSeed.userIdeaSeed);
   const [votes, setVotes] = useState<Record<string, VoteState>>(initialSeed.votes);
   const [customIdeas, setCustomIdeas] = useState<CustomIdeaDraft[]>(initialSeed.customIdeas);
   const [selectedPreset, setSelectedPreset] = useState<ContestDecisionMatrixPreset>(initialSeed.selectedPreset);
   const [selectedIdeaId, setSelectedIdeaId] = useState(initialSeed.selectedIdeaId);
+  const [currentIdeaIndex, setCurrentIdeaIndex] = useState(initialSeed.currentIdeaIndex);
+  const [isDreamEditorOpen, setIsDreamEditorOpen] = useState(initialSeed.isDreamEditorOpen);
+  const [showMatrixDetails, setShowMatrixDetails] = useState(initialSeed.showMatrixDetails);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const lastOpenRef = useRef(isOpen);
@@ -179,6 +206,9 @@ export function ContestIdeationModal({
 
   const aiIdeaCandidates = session.ideaCandidates.filter((candidate) => candidate.source === "ai");
   const rankingCandidates = session.topRecommendations.length > 0 ? session.topRecommendations : session.matrixRows.slice(0, 3);
+  const reviewedCount = aiIdeaCandidates.filter((candidate) => (votes[candidate.id] ?? "neutral") !== "neutral").length;
+  const likedCount = aiIdeaCandidates.filter((candidate) => (votes[candidate.id] ?? "neutral") === "liked").length;
+  const currentIdea = aiIdeaCandidates[currentIdeaIndex];
   const teamHref = `/team/${contestId}?session=${session.id}`;
   const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isPending;
 
@@ -196,11 +226,13 @@ export function ContestIdeationModal({
     setActiveStep(nextSeed.activeStep);
     setSelectedWhyId(nextSeed.selectedWhyId);
     setWhyText(nextSeed.whyText);
-    setUserIdeaSeed(nextSeed.userIdeaSeed);
     setVotes(nextSeed.votes);
     setCustomIdeas(nextSeed.customIdeas);
     setSelectedPreset(nextSeed.selectedPreset);
     setSelectedIdeaId(nextSeed.selectedIdeaId);
+    setCurrentIdeaIndex(nextSeed.currentIdeaIndex);
+    setIsDreamEditorOpen(nextSeed.isDreamEditorOpen);
+    setShowMatrixDetails(false);
     setError(null);
   }, [isOpen, session]);
 
@@ -243,10 +275,16 @@ export function ContestIdeationModal({
   }
 
   function handleVote(candidateId: string, voteState: VoteState) {
-    setVotes((current) => ({
-      ...current,
-      [candidateId]: current[candidateId] === voteState ? "neutral" : voteState,
-    }));
+    setVotes((current) => {
+      const nextVoteState = current[candidateId] === voteState ? "neutral" : voteState;
+      const nextVotes = {
+        ...current,
+        [candidateId]: nextVoteState,
+      };
+
+      setCurrentIdeaIndex(getNextIdeaIndex(session.ideaCandidates, nextVotes, currentIdeaIndex));
+      return nextVotes;
+    });
   }
 
   function handlePrevious() {
@@ -315,7 +353,6 @@ export function ContestIdeationModal({
               cons: [],
               fitReason: trimLine(idea.description, "직접 떠올린 방향"),
             })),
-          userIdeaSeed,
         });
 
         const matrixSession = await requestSession("matrix", {
@@ -324,6 +361,7 @@ export function ContestIdeationModal({
         });
 
         setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
+        setShowMatrixDetails(false);
         setActiveStep("final");
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "추천 순위를 만들지 못했습니다.");
@@ -342,6 +380,7 @@ export function ContestIdeationModal({
           weights: decisionMatrixPresetWeights[preset],
         });
         setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
+        setShowMatrixDetails(false);
         setActiveStep("final");
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "추천 순위를 다시 계산하지 못했습니다.");
@@ -435,31 +474,52 @@ export function ContestIdeationModal({
                 ))}
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-[24px] border border-[var(--border)] bg-[var(--surface-muted)] p-5">
-                  <label htmlFor="ideation-dream-text" className="text-sm font-semibold text-[var(--foreground)]">
-                    한 줄 메모만 남겨도 충분해요
-                  </label>
-                  <textarea
-                    id="ideation-dream-text"
-                    value={whyText}
-                    onChange={(event) => setWhyText(event.target.value)}
-                    rows={4}
-                    placeholder="예: 포트폴리오로도 남고, 면접에서 설명하기 쉬운 방향이면 좋겠어."
-                    className="mt-3 min-h-[120px] w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-7 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.24)]"
-                  />
-                </div>
-
+              <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
                 <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
                   <div className="text-sm font-semibold text-[var(--foreground)]">AI가 바로 이어서 해주는 일</div>
                   <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--muted)]">
                     <p>1. 네가 고른 방향을 심사 포인트에 맞게 정리해줘요.</p>
-                    <p>2. 그 방향으로 갈 만한 아이디어를 6~8개 뽑아줘요.</p>
+                    <p>2. 그 방향으로 갈 만한 아이디어를 6개 정도 뽑아줘요.</p>
                     <p>3. 마지막엔 뭐가 제일 유리한지 순위까지 정리해줘요.</p>
                   </div>
                   <div className="mt-5 rounded-[18px] border border-[rgba(245,241,232,0.1)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)]">
                     3분 안에 끝내는 흐름으로 맞춰뒀어요.
                   </div>
+                </div>
+
+                <div className="rounded-[24px] border border-[var(--border)] bg-[var(--surface-muted)] p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--foreground)]">내 말투로 조금 더 바꾸고 싶다면</div>
+                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                        기본 추천을 고른 뒤, 직접 한 줄 더 적어도 돼요.
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => setIsDreamEditorOpen((current) => !current)} className="secondary-button">
+                      <FaPlus className="h-3.5 w-3.5" aria-hidden />
+                      직접 추가
+                    </button>
+                  </div>
+
+                  {isDreamEditorOpen ? (
+                    <div className="mt-4">
+                      <label htmlFor="ideation-dream-text" className="text-sm font-semibold text-[var(--foreground)]">
+                        직접 적어볼 문장
+                      </label>
+                      <textarea
+                        id="ideation-dream-text"
+                        value={whyText}
+                        onChange={(event) => setWhyText(event.target.value)}
+                        rows={4}
+                        placeholder="예: 포트폴리오로도 남고, 면접에서 설명하기 쉬운 방향이면 좋겠어."
+                        className="mt-3 min-h-[120px] w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-7 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.24)]"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-[18px] border border-dashed border-[var(--border)] bg-[rgba(255,255,255,0.02)] px-4 py-4 text-sm text-[var(--muted)]">
+                      지금은 AI가 제안한 방향 그대로 진행합니다.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -473,7 +533,7 @@ export function ContestIdeationModal({
                   이런 아이디어 어때?
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  마음에 드는 건 좋아요만 눌러두세요. AI가 그걸 바탕으로 바로 순위를 매길게요.
+                  카드가 하나씩 나와요. 괜찮으면 좋아요, 아니면 패스를 눌러 주세요. AI가 그걸 바탕으로 바로 순위를 매길게요.
                 </p>
               </div>
 
@@ -488,53 +548,112 @@ export function ContestIdeationModal({
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-2">
-                {aiIdeaCandidates.map((idea) => {
-                  const vote = votes[idea.id] ?? "neutral";
-
-                  return (
-                    <div key={idea.id} className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-base font-semibold text-[var(--foreground)]">{idea.title}</div>
-                          <p className="mt-3 text-sm leading-7 text-[var(--foreground)]">{trimLine(idea.description, idea.title)}</p>
-                        </div>
-                        <div className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">AI 추천</div>
+              {currentIdea ? (
+                <div className="rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                        카드 {Math.min(currentIdeaIndex + 1, aiIdeaCandidates.length)} / {aiIdeaCandidates.length}
                       </div>
-                      {idea.fitReason ? (
-                        <p className="mt-4 text-xs leading-6 text-[var(--muted)]">왜 괜찮냐면: {trimLine(idea.fitReason, "공고와 잘 맞아요.")}</p>
-                      ) : null}
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleVote(idea.id, "liked")}
-                          className={cn(
-                            "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                            vote === "liked"
-                              ? "border-[rgba(54,179,126,0.32)] bg-[rgba(54,179,126,0.12)] text-[var(--foreground)]"
-                              : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--muted)]",
-                          )}
-                        >
-                          👍 좋아요
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleVote(idea.id, "skipped")}
-                          className={cn(
-                            "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                            vote === "skipped"
-                              ? "border-[rgba(245,241,232,0.24)] bg-[rgba(245,241,232,0.1)] text-[var(--foreground)]"
-                              : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--muted)]",
-                          )}
-                        >
-                          👀 패스
-                        </button>
+                      <div className="mt-3 h-2 w-48 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--foreground)] transition-all"
+                          style={{ width: `${aiIdeaCandidates.length ? ((currentIdeaIndex + 1) / aiIdeaCandidates.length) * 100 : 0}%` }}
+                        />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIdeaIndex((current) => (current > 0 ? current - 1 : current))}
+                        className="hero-action-button"
+                        aria-label="이전 카드"
+                        disabled={currentIdeaIndex === 0}
+                      >
+                        <FaChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIdeaIndex((current) => (current < aiIdeaCandidates.length - 1 ? current + 1 : current))}
+                        className="hero-action-button"
+                        aria-label="다음 카드"
+                        disabled={currentIdeaIndex >= aiIdeaCandidates.length - 1}
+                      >
+                        <FaChevronRight className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative mt-6 min-h-[320px]">
+                    {aiIdeaCandidates.slice(currentIdeaIndex, currentIdeaIndex + 3).reverse().map((idea, stackIndex, visibleIdeas) => {
+                      const depth = visibleIdeas.length - stackIndex - 1;
+                      const vote = votes[idea.id] ?? "neutral";
+
+                      return (
+                        <div
+                          key={idea.id}
+                          className={cn(
+                            "absolute inset-x-0 top-0 rounded-[28px] border bg-[rgba(9,11,15,0.92)] p-6 transition-all",
+                            depth === 0
+                              ? "border-[rgba(245,241,232,0.24)] shadow-[0_18px_60px_rgba(0,0,0,0.24)]"
+                              : "border-[var(--border)]",
+                          )}
+                          style={{
+                            transform: `translateY(${depth * 14}px) scale(${1 - depth * 0.03})`,
+                            opacity: 1 - depth * 0.18,
+                            zIndex: 20 - depth,
+                          }}
+                        >
+                          {depth === 0 ? (
+                            <>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">AI 추천 카드</div>
+                                  <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">{idea.title}</div>
+                                </div>
+                                {vote !== "neutral" ? (
+                                  <div className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--foreground)]">
+                                    {vote === "liked" ? "👍 좋아요" : "👀 패스"}
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              <p className="mt-5 text-base leading-8 text-[var(--foreground)]">{trimLine(idea.description, idea.title)}</p>
+                              {idea.fitReason ? (
+                                <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+                                  왜 괜찮냐면: {trimLine(idea.fitReason, "공고와 잘 맞아요.")}
+                                </p>
+                              ) : null}
+
+                              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleVote(idea.id, "skipped")}
+                                  className="secondary-button h-12 justify-center"
+                                >
+                                  👀 패스
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVote(idea.id, "liked")}
+                                  className="primary-button h-12 justify-center"
+                                >
+                                  👍 좋아요
+                                </button>
+                              </div>
+                            </>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                    <span className="rounded-full border border-[var(--border)] px-3 py-1.5">검토 {reviewedCount}/{aiIdeaCandidates.length}</span>
+                    <span className="rounded-full border border-[var(--border)] px-3 py-1.5">좋아요 {likedCount}</span>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-[24px] border border-[var(--border)] bg-[var(--surface-muted)] p-5">
                 <div className="flex items-center justify-between gap-3">
@@ -599,19 +718,6 @@ export function ContestIdeationModal({
                 </p>
               </div>
 
-              <div className="rounded-[24px] border border-dashed border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-5">
-                <label htmlFor="ideation-user-seed" className="text-sm font-semibold text-[var(--foreground)]">
-                  이미 떠오른 방향이 있으면 한 줄만 적어줘
-                </label>
-                <textarea
-                  id="ideation-user-seed"
-                  value={userIdeaSeed}
-                  onChange={(event) => setUserIdeaSeed(event.target.value)}
-                  rows={3}
-                  placeholder="예: 면접에서 설명하기 쉬운 데모형 서비스로 가고 싶어"
-                  className="mt-3 min-h-[96px] w-full rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-7 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[rgba(245,241,232,0.24)]"
-                />
-              </div>
             </div>
           ) : null}
 
@@ -721,6 +827,52 @@ export function ContestIdeationModal({
                       <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{session.matrixSummary}</p>
                     </div>
                   ) : null}
+
+                  <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
+                    <button
+                      type="button"
+                      onClick={() => setShowMatrixDetails((current) => !current)}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-[var(--foreground)]">자세히 보기</div>
+                        <p className="mt-2 text-xs leading-6 text-[var(--muted)]">원하면 계산된 매트릭스 표도 볼 수 있어요.</p>
+                      </div>
+                      <span className="text-xs font-semibold text-[var(--muted)]">{showMatrixDetails ? "닫기" : "열기"}</span>
+                    </button>
+
+                    {showMatrixDetails ? (
+                      <div className="mt-5 overflow-x-auto rounded-[20px] border border-[var(--border)]">
+                        <table className="min-w-full text-left text-sm">
+                          <thead className="bg-[rgba(255,255,255,0.03)] text-[var(--muted)]">
+                            <tr>
+                              <th className="px-4 py-3 font-medium">아이디어</th>
+                              <th className="px-4 py-3 font-medium">임팩트</th>
+                              <th className="px-4 py-3 font-medium">실현성</th>
+                              <th className="px-4 py-3 font-medium">주제 적합도</th>
+                              <th className="px-4 py-3 font-medium">속도</th>
+                              <th className="px-4 py-3 font-medium">총점</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {session.matrixRows.map((candidate) => (
+                              <tr key={candidate.id} className="border-t border-[var(--border)]">
+                                <td className="px-4 py-4 align-top">
+                                  <div className="font-semibold text-[var(--foreground)]">{candidate.title}</div>
+                                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{candidate.matrixScores.reason}</p>
+                                </td>
+                                <td className="px-4 py-4 text-[var(--foreground)]">{candidate.matrixScores.impact}</td>
+                                <td className="px-4 py-4 text-[var(--foreground)]">{candidate.matrixScores.feasibility}</td>
+                                <td className="px-4 py-4 text-[var(--foreground)]">{candidate.matrixScores.alignment}</td>
+                                <td className="px-4 py-4 text-[var(--foreground)]">{candidate.matrixScores.speed}</td>
+                                <td className="px-4 py-4 font-semibold text-[var(--foreground)]">{candidate.matrixScores.total.toFixed(1)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>
