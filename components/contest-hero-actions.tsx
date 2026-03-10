@@ -17,6 +17,7 @@ import {
   toggleContestReminderAction,
 } from "@/app/contests/actions";
 import { cn, formatCompactNumber, formatReminderLabel } from "@/lib/utils";
+import { getViewerContinueActionLabel, getViewerReturnDescription } from "@/lib/viewer-next-path";
 import type { ContestTrackingState, ContestTrackingStatus } from "@/types/contest";
 
 type ContestHeroActionsProps = {
@@ -67,6 +68,8 @@ export function ContestHeroActions({
 }: ContestHeroActionsProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const nextPath = `/contests/${slug}`;
+  const loginActionLabel = getViewerContinueActionLabel(nextPath);
+  const returnDescription = getViewerReturnDescription(nextPath);
 
   const openLoginModal = () => setIsLoginModalOpen(true);
   const closeLoginModal = () => setIsLoginModalOpen(false);
@@ -144,10 +147,10 @@ export function ContestHeroActions({
               <div>
                 <div className="eyebrow">로그인 필요</div>
                 <h3 id="contest-login-title" className="mt-3 text-xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                  저장, 진행 상태, 마감 알림은 로그인 후 사용할 수 있습니다.
+                  로그인 후 저장과 진행 상태를 바로 이어서 관리할 수 있습니다.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                  공모전을 저장하고 준비 상태를 남겨두면 내 활동 페이지에서 모아볼 수 있습니다.
+                  {returnDescription} 저장한 공고와 마감 알림은 내 활동에서 다시 볼 수 있습니다.
                 </p>
               </div>
               <button type="button" onClick={closeLoginModal} className="hero-action-button shrink-0" aria-label="닫기">
@@ -156,8 +159,8 @@ export function ContestHeroActions({
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
-                로그인하고 이어서 보기
+              <Link href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
+                {loginActionLabel}
               </Link>
               <button type="button" onClick={closeLoginModal} className="secondary-button flex-1">
                 닫기

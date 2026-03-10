@@ -7,6 +7,7 @@ import { FaArrowRight, FaCheck, FaSpinner, FaUsers, FaXmark } from "react-icons/
 import { ContestIdeationModal } from "@/components/contest-ideation-modal";
 import { InsightPanel } from "@/components/insight-panel";
 import { formatCompactNumber } from "@/lib/utils";
+import { getViewerContinueActionLabel, getViewerReturnDescription } from "@/lib/viewer-next-path";
 import type { Contest, ContestIdeationSession } from "@/types/contest";
 
 type ContestPreparationExperienceProps = {
@@ -64,6 +65,8 @@ export function ContestPreparationExperience({
   const nextPath = `/contests/${contest.slug}`;
   const primaryLabel = buildPrimaryLabel(session);
   const teamHref = session ? `/team/${contest.id}?session=${session.id}` : "#";
+  const loginActionLabel = getViewerContinueActionLabel(nextPath);
+  const returnDescription = getViewerReturnDescription(nextPath);
 
   function closeLoginModal() {
     setIsLoginModalOpen(false);
@@ -237,10 +240,10 @@ export function ContestPreparationExperience({
               <div>
                 <div className="eyebrow">로그인 필요</div>
                 <h3 id="contest-ideation-login-title" className="mt-3 text-xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                  브레인스토밍 draft와 팀 빌딩 handoff는 로그인 후에 저장됩니다.
+                  로그인 후 지금 흐름을 그대로 이어서 준비할 수 있습니다.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                  로그인 후에는 공모전별 진행률과 확정 아이디어를 다시 이어서 볼 수 있습니다.
+                  {returnDescription} 브레인스토밍 draft와 확정 아이디어도 자동으로 이어집니다.
                 </p>
               </div>
               <button type="button" onClick={closeLoginModal} className="hero-action-button shrink-0" aria-label="닫기">
@@ -249,8 +252,8 @@ export function ContestPreparationExperience({
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={`/login?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
-                로그인하고 이어서 보기
+              <Link href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
+                {loginActionLabel}
               </Link>
               <button type="button" onClick={closeLoginModal} className="secondary-button flex-1">
                 닫기
