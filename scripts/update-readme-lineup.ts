@@ -23,6 +23,8 @@ type ReadmeContestRow = {
   ai_categories: ContestCategory[] | null;
   eligibility_segments: string[] | null;
   short_description: string | null;
+  view_count: number | null;
+  apply_count: number | null;
   contest_badges: { badge: ContestBadge; reason: string | null }[] | null;
   status: string;
 };
@@ -39,12 +41,16 @@ type ExportedContest = {
   deadlineDate: string;
   prizePoolKrw: number | null;
   prizeLabel: string;
+  viewCount: number;
+  applyCount: number;
   categories: ContestCategory[];
   categoryLabels: string[];
   badges: ContestBadge[];
   badgeLabels: string[];
   eligibilitySegments: string[];
   shortDescription: string | null;
+  featuredSections: string[];
+  featuredReason: string | null;
 };
 
 const README_PATH = path.resolve(process.cwd(), "README.md");
@@ -127,6 +133,36 @@ function formatOrganizerType(value: ContestOrganizerType | null) {
   return organizerTypeOptions.find((option) => option.id === value)?.label ?? value;
 }
 
+function deriveOrganizerType(organizer: string): ContestOrganizerType {
+  const normalized = organizer.toLowerCase();
+
+  if (
+    /정부|공공|부처|청|시청|구청|도청|한국|kotra|진흥원|공사|산업통상|과학기술|ministry|government|agency/.test(
+      normalized,
+    )
+  ) {
+    return "government";
+  }
+
+  if (/재단|foundation/.test(normalized)) {
+    return "foundation";
+  }
+
+  if (/대학교|대학|university|college/.test(normalized)) {
+    return "university";
+  }
+
+  if (/openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|microsoft|amazon|meta/.test(normalized)) {
+    return "enterprise";
+  }
+
+  if (/startup|works|labs|lab|studio/.test(normalized)) {
+    return "startup";
+  }
+
+  return "community";
+}
+
 function formatBadgeLabels(badges: ContestBadge[]) {
   return badges.map((badge) => contestBadgeOptions.find((option) => option.id === badge)?.label ?? badge);
 }
@@ -176,6 +212,7 @@ function hasBadge(contest: ReadmeContestRow, badge: ContestBadge) {
 
 function toExportedContest(contest: ReadmeContestRow): ExportedContest {
   const badges = (contest.contest_badges ?? []).map((item) => item.badge);
+  const organizerType = contest.organizer_type ?? deriveOrganizerType(contest.organizer);
 
   return {
     id: contest.id,
@@ -183,23 +220,28 @@ function toExportedContest(contest: ReadmeContestRow): ExportedContest {
     slug: contest.slug,
     url: `${APP_BASE_URL}/contests/${contest.slug}`,
     organizer: contest.organizer,
-    organizerType: contest.organizer_type,
-    organizerTypeLabel: formatOrganizerType(contest.organizer_type),
+    organizerType,
+    organizerTypeLabel: formatOrganizerType(organizerType),
     deadline: contest.deadline,
     deadlineDate: formatDate(contest.deadline),
     prizePoolKrw: parsePrize(contest.prize_pool_krw),
     prizeLabel: formatCurrency(contest.prize_pool_krw),
+    viewCount: contest.view_count ?? 0,
+    applyCount: contest.apply_count ?? 0,
     categories: contest.ai_categories ?? [],
     categoryLabels: formatCategories(contest.ai_categories),
     badges,
     badgeLabels: formatBadgeLabels(badges),
     eligibilitySegments: contest.eligibility_segments ?? [],
     shortDescription: contest.short_description ?? null,
+    featuredSections: [],
+    featuredReason: null,
   };
 }
 
 function buildFeaturedSections(contests: ReadmeContestRow[]) {
   const exported = contests.map(toExportedContest);
+  const exportedById = new Map(exported.map((contest) => [contest.id, contest]));
 
   const urgent = exported
     .filter((contest) => {
@@ -210,9 +252,31 @@ function buildFeaturedSections(contests: ReadmeContestRow[]) {
     .sort((left, right) => left.deadlineDate.localeCompare(right.deadlineDate))
     .slice(0, 5);
 
+  for (const contest of urgent) {
+    const target = exportedById.get(contest.id);
+
+    if (!target) {
+      continue;
+    }
+
+    target.featuredSections.push("deadlineUrgent");
+    target.featuredReason ??= "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회";
+  }
+
   const highPrize = [...exported]
     .sort((left, right) => (right.prizePoolKrw ?? 0) - (left.prizePoolKrw ?? 0))
     .slice(0, 5);
+
+  for (const contest of highPrize) {
+    const target = exportedById.get(contest.id);
+
+    if (!target) {
+      continue;
+    }
+
+    target.featuredSections.push("highPrize");
+    target.featuredReason ??= "총상금 규모가 커서 상금순 추천 섹션에 포함된 대회";
+  }
 
   const studentFriendly = exported
     .filter((contest) => {
@@ -224,6 +288,17 @@ function buildFeaturedSections(contests: ReadmeContestRow[]) {
       );
     })
     .slice(0, 5);
+
+  for (const contest of studentFriendly) {
+    const target = exportedById.get(contest.id);
+
+    if (!target) {
+      continue;
+    }
+
+    target.featuredSections.push("studentFriendly");
+    target.featuredReason ??= "대학생 지원 적합도가 높아 학생 추천 섹션에 포함된 대회";
+  }
 
   return {
     urgent,
@@ -245,7 +320,7 @@ async function fetchPublishedContests() {
   const { data, error } = await supabase
     .from("contests")
     .select(
-      "id, title, slug, organizer, organizer_type, deadline, prize_pool_krw, ai_categories, eligibility_segments, short_description, status, contest_badges (badge, reason)",
+      "id, title, slug, organizer, organizer_type, deadline, prize_pool_krw, ai_categories, eligibility_segments, short_description, view_count, apply_count, status, contest_badges (badge, reason)",
     )
     .eq("status", "published")
     .order("deadline", { ascending: true, nullsFirst: false });

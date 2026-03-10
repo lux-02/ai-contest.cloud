@@ -27,12 +27,14 @@
       "slug": "openai-safety-sprint",
       "url": "https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint",
       "organizer": "OpenAI Builders",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "enterprise",
+      "organizerTypeLabel": "대기업",
       "deadline": "2026-03-14",
       "deadlineDate": "2026-03-14",
       "prizePoolKrw": 72500000,
       "prizeLabel": "₩72,500,000",
+      "viewCount": 4,
+      "applyCount": 3,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -63,7 +65,13 @@
         "startup",
         "developer"
       ],
-      "shortDescription": "Production-grade LLM safety evaluation workflow를 설계하는 글로벌 해커톤."
+      "shortDescription": "Production-grade LLM safety evaluation workflow를 설계하는 글로벌 해커톤.",
+      "featuredSections": [
+        "deadlineUrgent",
+        "highPrize",
+        "studentFriendly"
+      ],
+      "featuredReason": "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회"
     },
     {
       "id": "4ce34cff-f491-4156-ba6e-1a3dff770ce9",
@@ -71,12 +79,14 @@
       "slug": "multimodal-studio-jam",
       "url": "https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam",
       "organizer": "Creator Tools Collective",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "community",
+      "organizerTypeLabel": "커뮤니티",
       "deadline": "2026-03-16",
       "deadlineDate": "2026-03-16",
       "prizePoolKrw": 21750000,
       "prizeLabel": "₩21,750,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "multimodal-ai",
         "generative-ai"
@@ -102,7 +112,12 @@
         "developer",
         "designer"
       ],
-      "shortDescription": "텍스트, 이미지, 음성을 함께 엮어 제작 경험을 재구성하는 멀티모달 제작 해커톤."
+      "shortDescription": "텍스트, 이미지, 음성을 함께 엮어 제작 경험을 재구성하는 멀티모달 제작 해커톤.",
+      "featuredSections": [
+        "deadlineUrgent",
+        "highPrize"
+      ],
+      "featuredReason": "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회"
     },
     {
       "id": "d2d5a187-55f9-4798-a75f-1572ad6ec1cf",
@@ -110,12 +125,14 @@
       "slug": "campus-rag-league",
       "url": "https://ai-contest-cloud.vercel.app/contests/campus-rag-league",
       "organizer": "Korea AI Student Network",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "community",
+      "organizerTypeLabel": "커뮤니티",
       "deadline": "2026-03-21",
       "deadlineDate": "2026-03-21",
       "prizePoolKrw": 8700000,
       "prizeLabel": "₩8,700,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "llm-agents",
         "ai-for-social-good"
@@ -138,7 +155,11 @@
         "student",
         "education"
       ],
-      "shortDescription": "학생 팀이 빠르게 RAG 기반 MVP를 만들 수 있도록 설계된 대학생 중심 리그."
+      "shortDescription": "학생 팀이 빠르게 RAG 기반 MVP를 만들 수 있도록 설계된 대학생 중심 리그.",
+      "featuredSections": [
+        "studentFriendly"
+      ],
+      "featuredReason": "대학생 지원 적합도가 높아 학생 추천 섹션에 포함된 대회"
     },
     {
       "id": "5c934549-ff16-450a-ae56-0d65f93a2374",
@@ -146,12 +167,14 @@
       "slug": "roboops-field-test",
       "url": "https://ai-contest-cloud.vercel.app/contests/roboops-field-test",
       "organizer": "Autonomy Works",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "startup",
+      "organizerTypeLabel": "스타트업",
       "deadline": "2026-03-25",
       "deadlineDate": "2026-03-25",
       "prizePoolKrw": 17400000,
       "prizeLabel": "₩17,400,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "robotics",
         "ai-infra-systems"
@@ -173,7 +196,11 @@
         "developer",
         "embedded"
       ],
-      "shortDescription": "현장 작업 로봇의 작업 계획과 복구 시나리오를 검증하는 로보틱스 운영 챌린지."
+      "shortDescription": "현장 작업 로봇의 작업 계획과 복구 시나리오를 검증하는 로보틱스 운영 챌린지.",
+      "featuredSections": [
+        "highPrize"
+      ],
+      "featuredReason": "총상금 규모가 커서 상금순 추천 섹션에 포함된 대회"
     },
     {
       "id": "8923aea4-20f8-4f57-9892-a61872cc618b",
@@ -181,12 +208,14 @@
       "slug": "1-ai",
       "url": "https://ai-contest-cloud.vercel.app/contests/1-ai",
       "organizer": "함께봄 주식회사",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "community",
+      "organizerTypeLabel": "커뮤니티",
       "deadline": "2026-03-28",
       "deadlineDate": "2026-03-28",
       "prizePoolKrw": 1450000,
       "prizeLabel": "₩1,450,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "generative-ai"
       ],
@@ -196,7 +225,9 @@
       "badges": [],
       "badgeLabels": [],
       "eligibilitySegments": [],
-      "shortDescription": "AI 영상으로 아리랑의 꿈을 담아보세요! 상금 1300만 원."
+      "shortDescription": "AI 영상으로 아리랑의 꿈을 담아보세요! 상금 1300만 원.",
+      "featuredSections": [],
+      "featuredReason": null
     },
     {
       "id": "161295a7-628d-4fa5-af13-9c516b35cdea",
@@ -204,12 +235,14 @@
       "slug": "gti-ai",
       "url": "https://ai-contest-cloud.vercel.app/contests/gti-ai",
       "organizer": "이오스커뮤니케이션스",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "community",
+      "organizerTypeLabel": "커뮤니티",
       "deadline": "2026-04-03",
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "₩580,000",
+      "viewCount": 1,
+      "applyCount": 0,
       "categories": [
         "generative-ai"
       ],
@@ -227,7 +260,11 @@
       "eligibilitySegments": [
         "student"
       ],
-      "shortDescription": "골프 GTI 출시 50주년 기념, 골프 GTI의 헤리티지·퍼포먼스·브랜드 아이덴티티를 표현한 영상 광고"
+      "shortDescription": "골프 GTI 출시 50주년 기념, 골프 GTI의 헤리티지·퍼포먼스·브랜드 아이덴티티를 표현한 영상 광고",
+      "featuredSections": [
+        "studentFriendly"
+      ],
+      "featuredReason": "대학생 지원 적합도가 높아 학생 추천 섹션에 포함된 대회"
     },
     {
       "id": "0cc27f5e-35f4-48e1-b78d-b75aa0a23e0d",
@@ -235,12 +272,14 @@
       "slug": "vision-for-climate",
       "url": "https://ai-contest-cloud.vercel.app/contests/vision-for-climate",
       "organizer": "Earth Compute Lab",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "startup",
+      "organizerTypeLabel": "스타트업",
       "deadline": "2026-04-05",
       "deadlineDate": "2026-04-05",
       "prizePoolKrw": 36250000,
       "prizeLabel": "₩36,250,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "computer-vision",
         "ai-for-social-good"
@@ -266,7 +305,12 @@
         "research",
         "student"
       ],
-      "shortDescription": "위성 이미지와 현장 데이터를 활용해 기후 리스크를 감지하는 CV 중심 챌린지."
+      "shortDescription": "위성 이미지와 현장 데이터를 활용해 기후 리스크를 감지하는 CV 중심 챌린지.",
+      "featuredSections": [
+        "highPrize",
+        "studentFriendly"
+      ],
+      "featuredReason": "총상금 규모가 커서 상금순 추천 섹션에 포함된 대회"
     },
     {
       "id": "73d1674e-12a4-46b2-95d5-2022bac309de",
@@ -274,12 +318,14 @@
       "slug": "healthcare-ai-signal-cup",
       "url": "https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup",
       "organizer": "MediSignal Foundation",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "foundation",
+      "organizerTypeLabel": "유명 재단",
       "deadline": "2026-04-12",
       "deadlineDate": "2026-04-12",
       "prizePoolKrw": 43500000,
       "prizeLabel": "₩43,500,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "data-science",
         "ai-for-social-good"
@@ -301,7 +347,11 @@
         "research",
         "healthcare"
       ],
-      "shortDescription": "의료 시계열과 환자 리스크 예측 문제를 다루는 데이터 사이언스 경쟁형 챌린지."
+      "shortDescription": "의료 시계열과 환자 리스크 예측 문제를 다루는 데이터 사이언스 경쟁형 챌린지.",
+      "featuredSections": [
+        "highPrize"
+      ],
+      "featuredReason": "총상금 규모가 커서 상금순 추천 섹션에 포함된 대회"
     },
     {
       "id": "73a69084-4f21-4537-8919-ff83d43285f5",
@@ -309,12 +359,14 @@
       "slug": "2026-ai",
       "url": "https://ai-contest-cloud.vercel.app/contests/2026-ai",
       "organizer": "서초구",
-      "organizerType": null,
-      "organizerTypeLabel": null,
+      "organizerType": "community",
+      "organizerTypeLabel": "커뮤니티",
       "deadline": "2026-04-30",
       "deadlineDate": "2026-04-30",
       "prizePoolKrw": 12800000,
       "prizeLabel": "₩12,800,000",
+      "viewCount": 0,
+      "applyCount": 0,
       "categories": [
         "generative-ai"
       ],
@@ -324,7 +376,9 @@
       "badges": [],
       "badgeLabels": [],
       "eligibilitySegments": [],
-      "shortDescription": "AI로 미래 도시를 디자인하는 공모전입니다."
+      "shortDescription": "AI로 미래 도시를 디자인하는 공모전입니다.",
+      "featuredSections": [],
+      "featuredReason": null
     }
   ]
 }
