@@ -17,6 +17,19 @@ type CustomIdeaDraft = {
   description: string;
 };
 
+type CustomIdeaPayload = {
+  title: string;
+  description: string;
+  pros: string[];
+  cons: string[];
+  fitReason: string;
+};
+
+type ToastState = {
+  id: number;
+  message: string;
+};
+
 type ContestIdeationModalProps = {
   slug: string;
   contestId: string;
@@ -157,6 +170,73 @@ function trimLine(text: string, fallback: string) {
   return firstLine.trim();
 }
 
+function normalizeText(text?: string | null) {
+  return (text ?? "").replace(/\s+/g, " ").trim();
+}
+
+function buildCustomIdeaPayload(customIdeas: CustomIdeaDraft[]): CustomIdeaPayload[] {
+  return customIdeas
+    .filter((idea) => idea.title.trim() || idea.description.trim())
+    .map((idea) => ({
+      title: trimLine(idea.title, "직접 추가한 아이디어"),
+      description: idea.description.trim(),
+      pros: [],
+      cons: [],
+      fitReason: trimLine(idea.description, "직접 떠올린 방향"),
+    }));
+}
+
+function buildSavedCustomIdeaPayload(session: ContestIdeationSession): CustomIdeaPayload[] {
+  return session.ideaCandidates
+    .filter((candidate) => candidate.source === "user")
+    .map((candidate) => ({
+      title: trimLine(candidate.title, "직접 추가한 아이디어"),
+      description: candidate.description.trim(),
+      pros: [],
+      cons: [],
+      fitReason: trimLine(candidate.description, "직접 떠올린 방향"),
+    }));
+}
+
+function isSameCustomIdeaPayload(left: CustomIdeaPayload[], right: CustomIdeaPayload[]) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function isDreamStepCached(session: ContestIdeationSession, selectedWhyId: string, whyText: string) {
+  if (session.ideaCandidates.length === 0) {
+    return false;
+  }
+
+  if (!["what", "matrix", "selected"].includes(session.currentStage)) {
+    return false;
+  }
+
+  const savedWhyText = normalizeText(session.whyEditedText ?? session.selectedWhy);
+  return session.selectedWhyId === selectedWhyId && savedWhyText === normalizeText(whyText);
+}
+
+function isIdeasStepCached(
+  session: ContestIdeationSession,
+  votes: Record<string, VoteState>,
+  customIdeas: CustomIdeaDraft[],
+  selectedPreset: ContestDecisionMatrixPreset,
+) {
+  if (session.matrixRows.length === 0) {
+    return false;
+  }
+
+  if (!["matrix", "selected"].includes(session.currentStage)) {
+    return false;
+  }
+
+  const currentVotes = Object.fromEntries(session.ideaCandidates.map((candidate) => [candidate.id, candidate.voteState]));
+  const votesMatch = JSON.stringify(currentVotes) === JSON.stringify(votes);
+  const customIdeasMatch = isSameCustomIdeaPayload(buildSavedCustomIdeaPayload(session), buildCustomIdeaPayload(customIdeas));
+  const savedPreset = session.selectedMatrixPreset ?? session.recommendedMatrixPreset;
+
+  return votesMatch && customIdeasMatch && savedPreset === selectedPreset;
+}
+
 function getNextIdeaIndex(
   candidates: ContestIdeationSession["ideaCandidates"],
   nextVotes: Record<string, VoteState>,
@@ -199,6 +279,7 @@ export function ContestIdeationModal({
   const [currentIdeaIndex, setCurrentIdeaIndex] = useState(initialSeed.currentIdeaIndex);
   const [isDreamEditorOpen, setIsDreamEditorOpen] = useState(initialSeed.isDreamEditorOpen);
   const [showMatrixDetails, setShowMatrixDetails] = useState(initialSeed.showMatrixDetails);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const lastOpenRef = useRef(isOpen);
@@ -235,6 +316,18 @@ export function ContestIdeationModal({
     setShowMatrixDetails(false);
     setError(null);
   }, [isOpen, session]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setToast((current) => (current?.id === toast.id ? null : current));
+    }, 1300);
+
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   async function requestSession(path: string, body?: Record<string, unknown>) {
     const response = await fetch(`/api/contests/${slug}/ideation/${path}`, {
@@ -274,16 +367,20 @@ export function ContestIdeationModal({
     setCustomIdeas((current) => current.filter((idea) => idea.id !== id));
   }
 
-  function handleVote(candidateId: string, voteState: VoteState) {
+  function handleVote(candidateId: string, title: string, voteState: VoteState) {
     setVotes((current) => {
-      const nextVoteState = current[candidateId] === voteState ? "neutral" : voteState;
       const nextVotes = {
         ...current,
-        [candidateId]: nextVoteState,
+        [candidateId]: voteState,
       };
 
       setCurrentIdeaIndex(getNextIdeaIndex(session.ideaCandidates, nextVotes, currentIdeaIndex));
       return nextVotes;
+    });
+
+    setToast({
+      id: Date.now(),
+      message: voteState === "liked" ? `${title} 좋아요로 저장했어요` : `${title} 패스로 넘겼어요`,
     });
   }
 
@@ -303,6 +400,13 @@ export function ContestIdeationModal({
   function handleDreamNext() {
     if (!selectedWhyId) {
       setError("먼저 마음에 드는 방향을 하나 골라 주세요.");
+      return;
+    }
+
+    if (isDreamStepCached(session, selectedWhyId, whyText)) {
+      setError(null);
+      setCurrentIdeaIndex(getNextIdeaIndex(session.ideaCandidates, votes, -1));
+      setActiveStep("ideas");
       return;
     }
 
@@ -335,24 +439,26 @@ export function ContestIdeationModal({
   }
 
   function handleIdeasNext() {
+    if (isIdeasStepCached(session, votes, customIdeas, selectedPreset)) {
+      setError(null);
+      setSelectedIdeaId(session.selectedIdeaId ?? session.topRecommendations[0]?.id ?? session.matrixRows[0]?.id ?? "");
+      setShowMatrixDetails(false);
+      setActiveStep("final");
+      return;
+    }
+
     setError(null);
 
     startTransition(async () => {
       try {
+        const customIdeaPayload = buildCustomIdeaPayload(customIdeas);
+
         await requestSession("what", {
           votes: Object.entries(votes).map(([candidateId, voteState]) => ({
             candidateId,
             voteState,
           })),
-          customIdeas: customIdeas
-            .filter((idea) => idea.title.trim() || idea.description.trim())
-            .map((idea) => ({
-              title: trimLine(idea.title, "직접 추가한 아이디어"),
-              description: idea.description.trim(),
-              pros: [],
-              cons: [],
-              fitReason: trimLine(idea.description, "직접 떠올린 방향"),
-            })),
+          customIdeas: customIdeaPayload,
         });
 
         const matrixSession = await requestSession("matrix", {
@@ -628,14 +734,14 @@ export function ContestIdeationModal({
                               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                                 <button
                                   type="button"
-                                  onClick={() => handleVote(idea.id, "skipped")}
+                                  onClick={() => handleVote(idea.id, idea.title, "skipped")}
                                   className="secondary-button h-12 justify-center"
                                 >
                                   👀 패스
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleVote(idea.id, "liked")}
+                                  onClick={() => handleVote(idea.id, idea.title, "liked")}
                                   className="primary-button h-12 justify-center"
                                 >
                                   👍 좋아요
@@ -930,6 +1036,12 @@ export function ContestIdeationModal({
           </div>
         </footer>
       </div>
+
+      {toast ? (
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-[80] w-[min(92vw,420px)] -translate-x-1/2 rounded-full border border-[rgba(245,241,232,0.18)] bg-[rgba(9,11,15,0.92)] px-4 py-3 text-center text-sm font-medium text-[var(--foreground)] shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }
