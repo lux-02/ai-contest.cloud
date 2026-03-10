@@ -19,23 +19,31 @@ Luma-like AI contest discovery UI with a Supabase-backed data model for manual i
 README also works as a lightweight public lineup page, similar to curated event repos.  
 The latest details always live in the app, but this section gives a quick snapshot of the contests currently surfaced by the platform.
 
+<!-- lineup:start -->
 | Deadline | Contest | Organizer | Prize | Category |
 | --- | --- | --- | --- | --- |
-| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / Agents, AI Infra |
-| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | ₩21,750,000 | Multimodal AI, Generative AI |
-| 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | ₩8,700,000 | LLM / Agents, AI for Social Good |
-| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | ₩17,400,000 | Robotics, AI Infra |
-| 2026-03-28 | [제1회 꿈꾸는 아리랑 AI 뮤직비디오 공모전](https://ai-contest-cloud.vercel.app/contests/1-ai) | 함께봄 주식회사 | ₩1,450,000 | Generative AI |
-| 2026-04-03 | [폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전](https://ai-contest-cloud.vercel.app/contests/gti-ai) | 이오스커뮤니케이션스 | ₩580,000 | Generative AI |
-| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | ₩36,250,000 | Computer Vision, AI for Social Good |
-| 2026-04-12 | [Healthcare AI Signal Cup](https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup) | MediSignal Foundation | ₩43,500,000 | Data Science, AI for Social Good |
-| 2026-04-30 | [2026 청년 AI 디자인 공모전](https://ai-contest-cloud.vercel.app/contests/2026-ai) | 서초구 | ₩12,800,000 | Generative AI |
+| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / 에이전트, AI 인프라 / 시스템 |
+| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | ₩21,750,000 | 멀티모달 AI, 생성형 AI |
+| 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | ₩8,700,000 | LLM / 에이전트, 사회문제 해결 AI |
+| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | ₩17,400,000 | 로보틱스, AI 인프라 / 시스템 |
+| 2026-03-28 | [제1회 꿈꾸는 아리랑 AI 뮤직비디오 공모전](https://ai-contest-cloud.vercel.app/contests/1-ai) | 함께봄 주식회사 | ₩1,450,000 | 생성형 AI |
+| 2026-04-03 | [폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전](https://ai-contest-cloud.vercel.app/contests/gti-ai) | 이오스커뮤니케이션스 | ₩580,000 | 생성형 AI |
+| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | ₩36,250,000 | 컴퓨터 비전, 사회문제 해결 AI |
+| 2026-04-12 | [Healthcare AI Signal Cup](https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup) | MediSignal Foundation | ₩43,500,000 | 데이터 사이언스, 사회문제 해결 AI |
+| 2026-04-30 | [2026 청년 AI 디자인 공모전](https://ai-contest-cloud.vercel.app/contests/2026-ai) | 서초구 | ₩12,800,000 | 생성형 AI |
+<!-- lineup:end -->
 
 ## Local Run
 
 ```bash
 npm install
 npm run dev
+```
+
+Refresh the public README lineup from Supabase:
+
+```bash
+node --env-file=.env.local --import tsx scripts/update-readme-lineup.ts
 ```
 
 Add `.env.local` if you want live Supabase data:
@@ -99,3 +107,12 @@ NULL_TO_FULL_API_TIMEOUT_MS=45000
 
 When those env vars are present, [`/api/contests/[slug]/strategy-lab`](/Users/lux/Documents/ai-contest.cloud/app/api/contests/%5Bslug%5D/strategy-lab/route.ts) calls the private `Null-to-Full` API first and stores the returned strategy report + ranked sources in Supabase.
 If the private backend is unavailable, it falls back to the local in-repo pipeline.
+
+## GitHub Actions
+
+This repo includes a daily GitHub Actions workflow that refreshes the `Current Contest Lineup` section in `README.md`.
+
+Set these repository secrets before enabling the workflow:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
