@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { FaArrowRight, FaCheck, FaChevronLeft, FaPlus, FaSpinner, FaUsers, FaXmark } from "react-icons/fa6";
 
 import { decisionMatrixPresetWeights } from "@/lib/contest-ideation";
@@ -174,11 +174,35 @@ export function ContestIdeationModal({
   const [selectedIdeaId, setSelectedIdeaId] = useState(initialSeed.selectedIdeaId);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const lastOpenRef = useRef(isOpen);
+  const lastSessionIdRef = useRef(session.id);
 
   const aiIdeaCandidates = session.ideaCandidates.filter((candidate) => candidate.source === "ai");
   const rankingCandidates = session.topRecommendations.length > 0 ? session.topRecommendations : session.matrixRows.slice(0, 3);
   const teamHref = `/team/${contestId}?session=${session.id}`;
   const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isPending;
+
+  useEffect(() => {
+    const shouldHydrate = (isOpen && !lastOpenRef.current) || session.id !== lastSessionIdRef.current;
+
+    lastOpenRef.current = isOpen;
+    lastSessionIdRef.current = session.id;
+
+    if (!shouldHydrate) {
+      return;
+    }
+
+    const nextSeed = createLocalStateSeed(session);
+    setActiveStep(nextSeed.activeStep);
+    setSelectedWhyId(nextSeed.selectedWhyId);
+    setWhyText(nextSeed.whyText);
+    setUserIdeaSeed(nextSeed.userIdeaSeed);
+    setVotes(nextSeed.votes);
+    setCustomIdeas(nextSeed.customIdeas);
+    setSelectedPreset(nextSeed.selectedPreset);
+    setSelectedIdeaId(nextSeed.selectedIdeaId);
+    setError(null);
+  }, [isOpen, session]);
 
   async function requestSession(path: string, body?: Record<string, unknown>) {
     const response = await fetch(`/api/contests/${slug}/ideation/${path}`, {

@@ -245,7 +245,7 @@ export function ContestPreparationExperience({
 
       {session ? (
         <ContestIdeationModal
-          key={`${session.id}-${session.updatedAt ?? "fresh"}`}
+          key={session.id}
           slug={contest.slug}
           contestId={contest.id}
           contestTitle={contest.title}
