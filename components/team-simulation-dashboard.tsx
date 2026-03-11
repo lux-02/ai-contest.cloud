@@ -72,6 +72,7 @@ function formatRelativeDate(value?: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     month: "short",
     day: "numeric",
+    timeZone: "Asia/Seoul",
   }).format(new Date(value));
 }
 
@@ -79,6 +80,7 @@ function formatEventTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "Asia/Seoul",
   }).format(new Date(value));
 }
 

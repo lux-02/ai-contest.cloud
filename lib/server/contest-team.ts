@@ -1707,11 +1707,13 @@ export async function simulateContestTeamTurn(input: {
     const activeMembersByKey = buildMemberMapByKey(currentSession.members);
     let readinessScore = row.readiness_score;
     let toast = "";
+    let quickActionText = input.quickAction ?? null;
 
     if (input.quickAction) {
       const kickoffOption = currentSession.kickoffOptions.find((option) => option.id === input.quickAction);
 
       if (kickoffOption) {
+        quickActionText = kickoffOption.label;
         await insertTeamMessages(client, row.id, [
           {
             authorType: "user",
@@ -1792,7 +1794,7 @@ export async function simulateContestTeamTurn(input: {
         }).catch((error) => {
           logRemoteAiFallback("contest-team:turn", error, {
             contestSlug: access.contest.slug,
-            quickAction: input.quickAction ?? null,
+            quickAction: quickActionText,
             hasMessage: Boolean(input.message?.trim()),
           });
           return simulateFallbackTeamTurn({
@@ -1807,7 +1809,7 @@ export async function simulateContestTeamTurn(input: {
             lastMessages: latestSession.messages,
             userAction: {
               message: input.message,
-              quickAction: input.quickAction,
+              quickAction: quickActionText,
             },
           });
         })
@@ -1819,13 +1821,13 @@ export async function simulateContestTeamTurn(input: {
             tasks: latestSession.tasks,
             artifacts: latestSession.artifacts,
             kickoffChoice: latestSession.kickoffChoice,
-          },
-          lastMessages: latestSession.messages,
-          userAction: {
-            message: input.message,
-            quickAction: input.quickAction,
-          },
-        });
+        },
+        lastMessages: latestSession.messages,
+        userAction: {
+          message: input.message,
+          quickAction: quickActionText,
+        },
+      });
 
     const activeMembers = await readTeamSessionSnapshot(client, refreshedBeforeRemote);
     const activeMembersMap = buildMemberMapByKey(activeMembers.members);
