@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getContestBySlug } from "@/lib/queries";
 import { collectContestSources } from "@/lib/server/contest-source-collector";
+import { logRemoteAiFallback } from "@/lib/server/remote-ai-runtime";
 import { getStoredStrategyReport, upsertStrategyReport } from "@/lib/server/contest-strategy-report-store";
 import {
   canUseRemoteContestStrategyService,
@@ -47,7 +48,10 @@ export async function POST(request: Request, context: RouteContext) {
         sources = remote.sources;
         result = remote.result;
       } catch (error) {
-        console.error("[strategy-lab] remote service failed, falling back to local pipeline", error);
+        logRemoteAiFallback("contest-strategy", error, {
+          contestSlug: contest.slug,
+          route: "strategy-lab",
+        });
         sources = await collectContestSources(contest);
         result = await generateContestStrategyLab(contest, sources, { userIdea });
       }

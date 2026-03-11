@@ -1,7 +1,5 @@
 import "server-only";
 
-import { createHmac, randomUUID } from "node:crypto";
-
 import type {
   Contest,
   ContestTeamHandoff,
@@ -16,6 +14,7 @@ import type {
   TeamTaskPriority,
   TeamTaskStatus,
 } from "@/types/contest";
+import { callRemoteAiService, canUseRemoteAiService } from "./remote-ai-runtime";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 
@@ -128,52 +127,27 @@ type TeamStateInput = {
   artifacts: TeamArtifact[];
 };
 
-function base64UrlEncode(value: string) {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-
-function signJwt(payload: Record<string, unknown>, secret: string) {
-  const headerSegment = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payloadSegment = base64UrlEncode(JSON.stringify(payload));
-  const signingInput = `${headerSegment}.${payloadSegment}`;
-  const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
-  return `${signingInput}.${signature}`;
-}
-
-function getRemoteConfig() {
-  const baseUrl = process.env.NULL_TO_FULL_API_BASE_URL?.replace(/\/$/, "") ?? "";
-  const jwtSecret = process.env.NULL_TO_FULL_API_JWT_SECRET ?? "";
-
-  if (!baseUrl || !jwtSecret) {
-    return null;
-  }
-
-  return {
-    baseUrl,
-    jwtSecret,
-    issuer: process.env.NULL_TO_FULL_API_JWT_ISSUER ?? "ai-contest.cloud",
-    audience: process.env.NULL_TO_FULL_API_JWT_AUDIENCE ?? "null-to-full",
-    scope: process.env.NULL_TO_FULL_API_SCOPE ?? "contest_strategy.generate",
-    timeoutMs: Number(process.env.NULL_TO_FULL_API_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS),
-  };
-}
-
-function buildServiceToken(config: NonNullable<ReturnType<typeof getRemoteConfig>>) {
-  const now = Math.floor(Date.now() / 1000);
-
-  return signJwt(
-    {
-      iss: config.issuer,
-      aud: config.audience,
-      iat: now,
-      nbf: now - 5,
-      exp: now + 60,
-      jti: randomUUID(),
-      scope: config.scope,
-    },
-    config.jwtSecret,
-  );
-}
+type RemoteTeamStatePayload = {
+  teamName: string;
+  teamIntro: string;
+  currentFocus?: string | null;
+  kickoffChoice?: string | null;
+  readinessScore: number;
+  members: Array<{
+    memberKey: string;
+    name: string;
+    role: string;
+    englishRole?: string | null;
+    personality: string;
+    mainContribution: string;
+    skills: string[];
+    introLine: string;
+    status: "online" | "working" | "resting";
+    isUserClaimed: boolean;
+  }>;
+  tasks: TeamTask[];
+  artifacts: TeamArtifact[];
+};
 
 function buildContestPayload(contest: Contest) {
   return {
@@ -230,7 +204,7 @@ function mapKickoffOptions(
 }
 
 export function canUseRemoteContestTeamService() {
-  return getRemoteConfig() !== null;
+  return canUseRemoteAiService();
 }
 
 export async function generateContestTeamWithRemoteService(input: {
@@ -241,19 +215,36 @@ export async function generateContestTeamWithRemoteService(input: {
   currentMembers?: TeamMember[];
   fallbackKickoffOptions: TeamKickoffOption[];
 }) {
-  const config = getRemoteConfig();
-
-  if (!config) {
-    throw new Error("Remote contest team service is not configured.");
-  }
-
-  const response = await fetch(`${config.baseUrl}/generate-contest-team`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${buildServiceToken(config)}`,
-      "Content-Type": "application/json",
+  const response = await callRemoteAiService<
+    {
+      contest: ReturnType<typeof buildContestPayload>;
+      ideationSummary: TeamIdeationSummary;
+      regenerationMode: "bootstrap" | "single" | "all";
+      claimedRoles: string[];
+      currentMembers: Array<{
+        memberKey: string;
+        name: string;
+        role: string;
+        englishRole?: string | null;
+        personality: string;
+        mainContribution: string;
+        skills: string[];
+        introLine: string;
+        status: "online" | "working" | "resting";
+        avatarSeed: string;
+        isUserClaimed: boolean;
+      }>;
     },
-    body: JSON.stringify({
+    RemoteGenerateContestTeamPayload
+  >({
+    service: "contest-team:generate",
+    path: "/generate-contest-team",
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    metadata: {
+      contestSlug: input.contest.slug,
+      regenerationMode: input.regenerationMode ?? "bootstrap",
+    },
+    payload: {
       contest: buildContestPayload(input.contest),
       ideationSummary: buildIdeationSummary(input.handoff),
       regenerationMode: input.regenerationMode ?? "bootstrap",
@@ -272,16 +263,9 @@ export async function generateContestTeamWithRemoteService(input: {
           avatarSeed: member.avatarSeed,
           isUserClaimed: member.isUserClaimed,
         })) ?? [],
-    }),
-    signal: AbortSignal.timeout(config.timeoutMs),
+    },
   });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(body?.detail ?? "Remote contest team generation failed.");
-  }
-
-  const payload = (await response.json()) as RemoteGenerateContestTeamPayload;
+  const payload = response.payload;
 
   return {
     teamName: payload.teamName,
@@ -305,19 +289,34 @@ export async function simulateContestTeamTurnWithRemoteService(input: {
     quickAction?: string | null;
   };
 }) {
-  const config = getRemoteConfig();
-
-  if (!config) {
-    throw new Error("Remote contest team service is not configured.");
-  }
-
-  const response = await fetch(`${config.baseUrl}/simulate-team-turn`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${buildServiceToken(config)}`,
-      "Content-Type": "application/json",
+  const response = await callRemoteAiService<
+    {
+      contest: ReturnType<typeof buildContestPayload>;
+      ideationSummary: TeamIdeationSummary;
+      team: RemoteTeamStatePayload;
+      lastMessages: Array<{
+        authorType: TeamMessage["authorType"];
+        speakerName: string;
+        speakerRole: string | null;
+        body: string;
+        messageKind: TeamMessageKind;
+      }>;
+      userAction: {
+        message?: string | null;
+        quickAction?: string | null;
+      };
     },
-    body: JSON.stringify({
+    RemoteSimulateTeamTurnPayload
+  >({
+    service: "contest-team:turn",
+    path: "/simulate-team-turn",
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    metadata: {
+      contestSlug: input.contest.slug,
+      quickAction: input.userAction.quickAction ?? null,
+      teamName: input.teamState.teamName,
+    },
+    payload: {
       contest: buildContestPayload(input.contest),
       ideationSummary: buildIdeationSummary(input.handoff),
       team: {
@@ -338,19 +337,12 @@ export async function simulateContestTeamTurnWithRemoteService(input: {
       lastMessages: input.lastMessages.slice(-10).map((message) => ({
         authorType: message.authorType,
         speakerName: message.speakerName,
-        speakerRole: message.speakerRole,
+        speakerRole: message.speakerRole ?? null,
         body: message.body,
         messageKind: message.messageKind,
       })),
       userAction: input.userAction,
-    }),
-    signal: AbortSignal.timeout(config.timeoutMs),
+    },
   });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(body?.detail ?? "Remote contest team simulation failed.");
-  }
-
-  return (await response.json()) as RemoteSimulateTeamTurnPayload;
+  return response.payload;
 }

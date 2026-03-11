@@ -72,6 +72,8 @@ SUPABASE_DB_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-4o-mini
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
 ADMIN_SUPABASE_EMAIL=admin@example.com
 ADMIN_SUPABASE_EMAILS=admin@example.com
 ADMIN_SUPABASE_PASSWORD=...
@@ -120,10 +122,20 @@ NULL_TO_FULL_API_JWT_ISSUER=ai-contest.cloud
 NULL_TO_FULL_API_JWT_AUDIENCE=null-to-full
 NULL_TO_FULL_API_SCOPE=contest_strategy.generate
 NULL_TO_FULL_API_TIMEOUT_MS=45000
+NULL_TO_FULL_API_MAX_ATTEMPTS=2
+NULL_TO_FULL_API_RETRY_BASE_MS=400
+NULL_TO_FULL_API_CIRCUIT_FAILURE_THRESHOLD=3
+NULL_TO_FULL_API_CIRCUIT_COOLDOWN_MS=30000
+NULL_TO_FULL_API_DEDUP_WAIT_MS=4000
+NULL_TO_FULL_API_DEDUP_POLL_MS=250
+REMOTE_AI_CACHE_STRATEGY_TTL_SECONDS=21600
+REMOTE_AI_CACHE_IDEATION_TTL_SECONDS=1800
+REMOTE_AI_CACHE_TEAM_GENERATE_TTL_SECONDS=1800
+REMOTE_AI_CACHE_TEAM_TURN_TTL_SECONDS=120
 ```
 
 When those env vars are present, [`/api/contests/[slug]/strategy-lab`](/Users/lux/Documents/ai-contest.cloud/app/api/contests/%5Bslug%5D/strategy-lab/route.ts) calls the private `Null-to-Full` API first and stores the returned strategy report + ranked sources in Supabase.
-If the private backend is unavailable, it falls back to the local in-repo pipeline.
+If the private backend is unavailable, it falls back to the local in-repo pipeline. Remote calls now include request IDs, bounded retries, a small circuit breaker, and optional Upstash Redis cache/dedup when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured.
 
 ## GitHub Actions
 

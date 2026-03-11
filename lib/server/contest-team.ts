@@ -15,6 +15,7 @@ import {
 } from "@/lib/team-simulation";
 import { getContestById } from "@/lib/queries";
 import { getDbPool } from "@/lib/server/db";
+import { logRemoteAiFallback } from "@/lib/server/remote-ai-runtime";
 import { generateFallbackContestTeam, simulateFallbackTeamTurn } from "@/lib/server/contest-team-fallback";
 import {
   canUseRemoteContestTeamService,
@@ -1002,7 +1003,13 @@ export async function bootstrapContestTeamSession(contestId: string, ideationSes
           handoff: access.handoff,
           regenerationMode: "bootstrap",
           fallbackKickoffOptions: teamKickoffOptions,
-        }).catch(() => generateFallbackContestTeam(access.contest, access.handoff))
+        }).catch((error) => {
+          logRemoteAiFallback("contest-team:generate", error, {
+            contestSlug: access.contest.slug,
+            stage: "bootstrap",
+          });
+          return generateFallbackContestTeam(access.contest, access.handoff);
+        })
       : generateFallbackContestTeam(access.contest, access.handoff);
 
     const sessionResult = await client.query<{ id: string }>(
@@ -1286,7 +1293,14 @@ export async function regenerateContestTeamSession(input: {
           claimedRoles,
           currentMembers,
           fallbackKickoffOptions: session.kickoffOptions.length ? session.kickoffOptions : teamKickoffOptions,
-        }).catch(() => generateFallbackContestTeam(access.contest, access.handoff))
+        }).catch((error) => {
+          logRemoteAiFallback("contest-team:generate", error, {
+            contestSlug: access.contest.slug,
+            stage: "regenerate",
+            mode: input.mode,
+          });
+          return generateFallbackContestTeam(access.contest, access.handoff);
+        })
       : generateFallbackContestTeam(access.contest, access.handoff);
 
     if (input.mode === "single") {
@@ -1775,8 +1789,13 @@ export async function simulateContestTeamTurn(input: {
             message: input.message,
             quickAction: input.quickAction,
           },
-        }).catch(() =>
-          simulateFallbackTeamTurn({
+        }).catch((error) => {
+          logRemoteAiFallback("contest-team:turn", error, {
+            contestSlug: access.contest.slug,
+            quickAction: input.quickAction ?? null,
+            hasMessage: Boolean(input.message?.trim()),
+          });
+          return simulateFallbackTeamTurn({
             contest: access.contest,
             handoff: access.handoff,
             teamState: {
@@ -1790,8 +1809,8 @@ export async function simulateContestTeamTurn(input: {
               message: input.message,
               quickAction: input.quickAction,
             },
-          }),
-        )
+          });
+        })
       : simulateFallbackTeamTurn({
           contest: access.contest,
           handoff: access.handoff,
