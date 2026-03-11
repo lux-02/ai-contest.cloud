@@ -336,6 +336,20 @@ export function ContestIdeationModal({
   const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isWorking;
   const pendingCopy = getPendingCopy(activeStep);
 
+  function syncLocalState(nextSession: ContestIdeationSession) {
+    const seed = createLocalStateSeed(nextSession);
+    setActiveStep(seed.activeStep);
+    setSelectedWhyId(seed.selectedWhyId);
+    setWhyText(seed.whyText);
+    setVotes(seed.votes);
+    setCustomIdeas(seed.customIdeas);
+    setSelectedPreset(seed.selectedPreset);
+    setSelectedIdeaId(seed.selectedIdeaId);
+    setCurrentIdeaIndex(seed.currentIdeaIndex);
+    setIsDreamEditorOpen(seed.isDreamEditorOpen);
+    setShowMatrixDetails(seed.showMatrixDetails);
+  }
+
   useEffect(() => {
     if (!toast) {
       return undefined;
@@ -369,6 +383,7 @@ export function ContestIdeationModal({
         }
 
         if (payload?.session) {
+          syncLocalState(payload.session);
           onSessionChange(payload.session);
           setIdeationJob(null);
         }
@@ -396,6 +411,7 @@ export function ContestIdeationModal({
     }
 
     const payload = (await response.json()) as { session: ContestIdeationSession };
+    syncLocalState(payload.session);
     onSessionChange(payload.session);
     return payload.session;
   }
@@ -420,6 +436,7 @@ export function ContestIdeationModal({
     }
 
     if (payload?.session) {
+      syncLocalState(payload.session);
       onSessionChange(payload.session);
       setIdeationJob(null);
       return payload.session;
