@@ -18,8 +18,10 @@ type ReadmeContestRow = {
   slug: string;
   organizer: string;
   organizer_type: ContestOrganizerType | null;
+  url: string;
   deadline: string | null;
   prize_pool_krw: number | string | null;
+  prize_summary: string | null;
   ai_categories: ContestCategory[] | null;
   eligibility_segments: string[] | null;
   short_description: string | null;
@@ -101,20 +103,6 @@ function parsePrize(value: number | string | null) {
   return null;
 }
 
-function formatCurrency(value: number | string | null) {
-  const amount = parsePrize(value);
-
-  if (amount === null || amount <= 0) {
-    return "TBD";
-  }
-
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: "KRW",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 function formatCategories(categories: ContestCategory[] | null) {
   if (!categories || categories.length === 0) {
     return ["AI Contest"];
@@ -133,30 +121,102 @@ function formatOrganizerType(value: ContestOrganizerType | null) {
   return organizerTypeOptions.find((option) => option.id === value)?.label ?? value;
 }
 
-function deriveOrganizerType(organizer: string): ContestOrganizerType {
-  const normalized = organizer.toLowerCase();
+function parseMoneyMentions(text: string) {
+  const normalized = text.replace(/,/g, "");
+  let total = 0;
+
+  for (const match of normalized.matchAll(/(\d+(?:\.\d+)?)\s*억\s*원?/g)) {
+    total += Number(match[1]) * 100_000_000;
+  }
+
+  for (const match of normalized.matchAll(/(\d+(?:\.\d+)?)\s*만원/g)) {
+    total += Number(match[1]) * 10_000;
+  }
+
+  for (const match of normalized.matchAll(/(\d+(?:\.\d+)?)\s*천원/g)) {
+    total += Number(match[1]) * 1_000;
+  }
+
+  return total > 0 ? total : null;
+}
+
+function formatCompactPrize(value: number) {
+  if (value >= 100_000_000) {
+    return `약 ${(value / 100_000_000).toFixed(value % 100_000_000 === 0 ? 0 : 1)}억원`;
+  }
+
+  if (value >= 10_000) {
+    return `약 ${new Intl.NumberFormat("ko-KR", {
+      maximumFractionDigits: value % 10_000 === 0 ? 0 : 1,
+    }).format(value / 10_000)}만원`;
+  }
+
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: "KRW",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function buildPrizeHeadline(prizeSummary?: string | null, prizePoolKrw?: number | string | null) {
+  const source = prizeSummary ?? "";
+  const parsedPrize = parsePrize(prizePoolKrw ?? null);
+  const parsedFromText = parseMoneyMentions(source);
+  const comparableCash = parsedFromText ?? parsedPrize;
+  const hasExperienceReward = /해외|독일|항공권|숙박|행사 참여|프로그램 참여|레이스|투어|초청/.test(source);
+
+  if (comparableCash && comparableCash > 0) {
+    return hasExperienceReward ? `${formatCompactPrize(comparableCash)} + 해외 프로그램` : formatCompactPrize(comparableCash);
+  }
+
+  const lead = source
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-•*]\s*/, "").trim())
+    .filter(Boolean)[0];
+
+  if (!lead) {
+    return "TBD";
+  }
+
+  return lead.length > 34 ? `${lead.slice(0, 33).trim()}…` : lead;
+}
+
+function deriveOrganizerType(
+  organizer: string,
+  ...contextSignals: Array<string | null | undefined>
+): ContestOrganizerType {
+  const organizerNormalized = organizer.toLowerCase();
+  const contextNormalized = contextSignals
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const combinedNormalized = `${organizerNormalized} ${contextNormalized}`.trim();
 
   if (
     /정부|공공|부처|청|시청|구청|도청|한국|kotra|진흥원|공사|산업통상|과학기술|ministry|government|agency/.test(
-      normalized,
+      organizerNormalized,
     )
   ) {
     return "government";
   }
 
-  if (/재단|foundation/.test(normalized)) {
+  if (/재단|foundation/.test(organizerNormalized)) {
     return "foundation";
   }
 
-  if (/대학교|대학|university|college/.test(normalized)) {
+  if (/대학교|대학|university|college/.test(organizerNormalized)) {
     return "university";
   }
 
-  if (/openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|microsoft|amazon|meta/.test(normalized)) {
+  if (
+    /openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|폭스바겐|microsoft|amazon|meta|apple|tesla|bmw|benz|mercedes|toyota/.test(
+      combinedNormalized,
+    )
+  ) {
     return "enterprise";
   }
 
-  if (/startup|works|labs|lab|studio/.test(normalized)) {
+  if (/startup|works|labs|lab|studio|커뮤니케이션|communications|creative/.test(organizerNormalized)) {
     return "startup";
   }
 
@@ -212,7 +272,9 @@ function hasBadge(contest: ReadmeContestRow, badge: ContestBadge) {
 
 function toExportedContest(contest: ReadmeContestRow): ExportedContest {
   const badges = (contest.contest_badges ?? []).map((item) => item.badge);
-  const organizerType = contest.organizer_type ?? deriveOrganizerType(contest.organizer);
+  const derivedOrganizerType = deriveOrganizerType(contest.organizer, contest.title, contest.short_description, contest.url);
+  const organizerType =
+    contest.organizer_type && contest.organizer_type !== "community" ? contest.organizer_type : derivedOrganizerType;
 
   return {
     id: contest.id,
@@ -225,7 +287,7 @@ function toExportedContest(contest: ReadmeContestRow): ExportedContest {
     deadline: contest.deadline,
     deadlineDate: formatDate(contest.deadline),
     prizePoolKrw: parsePrize(contest.prize_pool_krw),
-    prizeLabel: formatCurrency(contest.prize_pool_krw),
+    prizeLabel: buildPrizeHeadline(contest.prize_summary, contest.prize_pool_krw),
     viewCount: contest.view_count ?? 0,
     applyCount: contest.apply_count ?? 0,
     categories: contest.ai_categories ?? [],
@@ -320,7 +382,7 @@ async function fetchPublishedContests() {
   const { data, error } = await supabase
     .from("contests")
     .select(
-      "id, title, slug, organizer, organizer_type, deadline, prize_pool_krw, ai_categories, eligibility_segments, short_description, view_count, apply_count, status, contest_badges (badge, reason)",
+      "id, title, slug, organizer, organizer_type, url, deadline, prize_pool_krw, prize_summary, ai_categories, eligibility_segments, short_description, view_count, apply_count, status, contest_badges (badge, reason)",
     )
     .eq("status", "published")
     .order("deadline", { ascending: true, nullsFirst: false });

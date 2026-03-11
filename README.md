@@ -25,29 +25,29 @@ The latest details always live in the app, and the same snapshot is also exporte
 
 | Deadline | Contest | Organizer | Prize | Category |
 | --- | --- | --- | --- | --- |
-| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / 에이전트, AI 인프라 / 시스템 |
-| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | ₩21,750,000 | 멀티모달 AI, 생성형 AI |
+| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | 약 7,250만원 | LLM / 에이전트, AI 인프라 / 시스템 |
+| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | 약 2,175만원 | 멀티모달 AI, 생성형 AI |
 
 ### 상금순
 총상금 규모가 큰 순서대로 상위 라인업을 모았습니다.
 
 | Deadline | Contest | Organizer | Prize | Category |
 | --- | --- | --- | --- | --- |
-| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / 에이전트, AI 인프라 / 시스템 |
-| 2026-04-12 | [Healthcare AI Signal Cup](https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup) | MediSignal Foundation | ₩43,500,000 | 데이터 사이언스, 사회문제 해결 AI |
-| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | ₩36,250,000 | 컴퓨터 비전, 사회문제 해결 AI |
-| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | ₩21,750,000 | 멀티모달 AI, 생성형 AI |
-| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | ₩17,400,000 | 로보틱스, AI 인프라 / 시스템 |
+| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | 약 7,250만원 | LLM / 에이전트, AI 인프라 / 시스템 |
+| 2026-04-12 | [Healthcare AI Signal Cup](https://ai-contest-cloud.vercel.app/contests/healthcare-ai-signal-cup) | MediSignal Foundation | 약 4,350만원 | 데이터 사이언스, 사회문제 해결 AI |
+| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | 약 3,625만원 | 컴퓨터 비전, 사회문제 해결 AI |
+| 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | 약 2,175만원 | 멀티모달 AI, 생성형 AI |
+| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | 약 1,740만원 | 로보틱스, AI 인프라 / 시스템 |
 
 ### 대학생 추천
 학생 포트폴리오와 첫 지원 경험에 잘 맞는 대회를 우선 모았습니다.
 
 | Deadline | Contest | Organizer | Prize | Category |
 | --- | --- | --- | --- | --- |
-| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | ₩72,500,000 | LLM / 에이전트, AI 인프라 / 시스템 |
-| 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | ₩8,700,000 | LLM / 에이전트, 사회문제 해결 AI |
-| 2026-04-03 | [폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전](https://ai-contest-cloud.vercel.app/contests/gti-ai) | 이오스커뮤니케이션스 | ₩580,000 | 생성형 AI |
-| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | ₩36,250,000 | 컴퓨터 비전, 사회문제 해결 AI |
+| 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | 약 7,250만원 | LLM / 에이전트, AI 인프라 / 시스템 |
+| 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | 약 870만원 | LLM / 에이전트, 사회문제 해결 AI |
+| 2026-04-03 | [폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전](https://ai-contest-cloud.vercel.app/contests/gti-ai) | 이오스커뮤니케이션스 | 약 400만원 + 해외 프로그램 | 생성형 AI |
+| 2026-04-05 | [Vision for Climate Challenge](https://ai-contest-cloud.vercel.app/contests/vision-for-climate) | Earth Compute Lab | 약 3,625만원 | 컴퓨터 비전, 사회문제 해결 AI |
 <!-- lineup:end -->
 
 ## Local Run

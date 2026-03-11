@@ -15,6 +15,7 @@ import { ContestHeroActions } from "@/components/contest-hero-actions";
 import { ContestPoster } from "@/components/contest-poster";
 import { ContestPreparationExperience } from "@/components/contest-preparation-experience";
 import { JudgingCriteriaChart } from "@/components/judging-criteria-chart";
+import { buildPrizeHeadline } from "@/lib/contest-signals";
 import { getContestBySlug } from "@/lib/queries";
 import { getContestIdeationSession } from "@/lib/server/contest-ideation";
 import { registerContestView } from "@/lib/server/contest-metrics";
@@ -87,6 +88,14 @@ function uniqueLines(items: string[]) {
   );
 }
 
+function prioritizeLines(items: string[], scorer: (item: string) => number, maxItems: number) {
+  return uniqueLines(items)
+    .map((item, index) => ({ item, index, score: scorer(item) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, maxItems)
+    .map((entry) => entry.item);
+}
+
 function buildCompactSummary(text?: string | null, maxItems = 2) {
   return uniqueLines(
     buildContentBlocks(text).map((block) => block.replace(/\s+\*.*$/, "").replace(/\s+\/.*$/, "").trim()),
@@ -96,15 +105,28 @@ function buildCompactSummary(text?: string | null, maxItems = 2) {
 }
 
 function buildEligibilityHighlights(contest: Contest, maxItems = 3) {
-  return uniqueLines(
-    buildContentBlocks(contest.eligibilityText).map((line) =>
-      line
-        .replace(/^(\d+\.|\d+\))\s*/, "")
-        .replace(/\s+\*.*$/, "")
-        .replace(/\s+\/.*$/, "")
-        .trim(),
-    ),
-  ).slice(0, maxItems);
+  return prioritizeLines(
+    [
+      formatTeamValue(contest),
+      ...buildContentBlocks(contest.eligibilityText).map((line) =>
+        line
+          .replace(/^(\d+\.|\d+\))\s*/, "")
+          .replace(/\s+\*.*$/, "")
+          .replace(/\s+\/.*$/, "")
+          .trim(),
+      ),
+    ],
+    (item) => {
+      let score = 0;
+      if (/개인 참가|팀 참가|개인전|팀전|1인 1작품|팀 구성/.test(item)) score += 150;
+      if (/대학생|학생|재학생|휴학생|졸업 예정/.test(item)) score += 130;
+      if (/만\s*\d+세|연령|나이/.test(item)) score += 110;
+      if (/국내외|global|해외|영어/.test(item)) score += 60;
+      if (/교육기관 기준|증명서|고등교육법|재학·휴학 중인 자/.test(item)) score -= 40;
+      return score;
+    },
+    maxItems,
+  );
 }
 
 function formatApplyChannel(url?: string | null) {
@@ -134,11 +156,20 @@ function formatApplyChannel(url?: string | null) {
 }
 
 function buildSubmissionHighlights(contest: Contest, maxItems = 4) {
-  return uniqueLines([
-    formatApplyChannel(contest.applyUrl),
-    ...(contest.submissionItems ?? []),
-    ...buildContentBlocks(contest.submissionFormat),
-  ]).slice(0, maxItems);
+  return prioritizeLines(
+    [formatApplyChannel(contest.applyUrl), ...(contest.submissionItems ?? []), ...buildContentBlocks(contest.submissionFormat)],
+    (item) => {
+      let score = 0;
+      if (/구글폼|devpost|kaggle|노션|접수|제출/.test(item)) score += 160;
+      if (/필수|설명|제작 과정|툴명|활용 방식|시연|링크/.test(item)) score += 130;
+      if (/길이|분량|초 미만|분 이내|페이지|슬라이드/.test(item)) score += 120;
+      if (/해상도|비율|가로형|세로형/.test(item)) score += 100;
+      if (/형식|mp4|mov|pdf|ppt|doc/.test(item.toLowerCase())) score += 90;
+      if (/용량|gb|mb/.test(item.toLowerCase())) score += 50;
+      return score;
+    },
+    maxItems,
+  );
 }
 
 function sortJudgingCriteria(criteria: ContestJudgingCriterion[] = []) {
@@ -160,6 +191,10 @@ function buildRewardHighlights(contest: Contest, maxItems = 4) {
   }
 
   return [formatCurrency(contest.prizePoolKrw)];
+}
+
+function buildHeroRewardValue(contest: Contest) {
+  return buildPrizeHeadline(contest.prizeSummary, contest.prizePoolKrw);
 }
 
 function hasStandaloneSubmissionFormat(contest: Contest) {
@@ -287,6 +322,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
   const judgingHighlights = buildJudgingHighlights(contestMetrics);
   const rewardHighlights = buildRewardHighlights(contestMetrics);
   const showStandaloneSubmissionFormat = hasStandaloneSubmissionFormat(contestMetrics);
+  const heroRewardValue = buildHeroRewardValue(contestMetrics);
 
   return (
     <main className="mx-auto max-w-7xl px-6 pb-32 pt-10 md:pb-20">
@@ -324,7 +360,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <HeroStat label="상금" value={formatCurrency(contestMetrics.prizePoolKrw)} />
+            <HeroStat label="상금 / 보상" value={heroRewardValue} />
             <HeroStat label="마감" value={formatDeadlineLabel(contestMetrics.deadline)} />
             <HeroStat label="주최 성격" value={formatOrganizerTrust(contestMetrics)} />
             <HeroStat label="참가 방식" value={formatTeamValue(contestMetrics)} />
@@ -395,9 +431,9 @@ export default async function ContestDetailPage({ params }: PageProps) {
             </div>
 
             <div className="mt-4 rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-4">
-              <div className="text-sm font-semibold text-[var(--foreground)]">신청 전, 포스터와 접수 형식만 먼저 확인해도 판단이 빨라집니다.</div>
+              <div className="text-sm font-semibold text-[var(--foreground)]">포스터와 접수 형식만 먼저 보고 신청 여부를 빠르게 정할 수 있습니다.</div>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                모바일에서는 아래 고정 바에서 바로 신청하고, 세부 조건은 이 페이지 안에서 이어서 확인하면 됩니다.
+                세부 조건과 심사 기준은 이 페이지 안에서 바로 이어서 확인할 수 있으니, 바깥 링크를 오가기 전에 판단을 끝내기 좋습니다.
               </p>
             </div>
 

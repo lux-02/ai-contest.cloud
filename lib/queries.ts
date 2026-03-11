@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { mockContests } from "@/lib/mock-contests";
+import { deriveOrganizerType } from "@/lib/contest-signals";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   getCategoryMeta,
@@ -233,13 +234,15 @@ function mapContestRow(row: ContestRow): Contest {
     row.url,
     row.source_url ?? undefined,
   );
+  const organizerType =
+    row.organizer_type && row.organizer_type !== "community" ? row.organizer_type : derivedOrganizerType;
 
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     organizer: row.organizer,
-    organizerType: row.organizer_type ?? derivedOrganizerType,
+    organizerType,
     shortDescription: row.short_description ?? row.description.slice(0, 140),
     description: row.description,
     url: row.url,
@@ -292,48 +295,6 @@ function normalizeSearchText(value: string) {
 
 function compactSearchText(value: string) {
   return normalizeSearchText(value).replace(/\s+/g, "");
-}
-
-function deriveOrganizerType(
-  organizer: string,
-  ...contextSignals: Array<string | undefined | null>
-): ContestOrganizerType {
-  const organizerNormalized = organizer.toLowerCase();
-  const contextNormalized = contextSignals
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  const combinedNormalized = `${organizerNormalized} ${contextNormalized}`.trim();
-
-  if (
-    /정부|공공|부처|청|시청|구청|도청|한국|kotra|진흥원|공사|산업통상|과학기술|ministry|government|agency/.test(
-      organizerNormalized,
-    )
-  ) {
-    return "government";
-  }
-
-  if (/재단|foundation/.test(organizerNormalized)) {
-    return "foundation";
-  }
-
-  if (/대학교|university|college/.test(organizerNormalized)) {
-    return "university";
-  }
-
-  if (
-    /openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|폭스바겐|microsoft|amazon|meta|apple|tesla|bmw|benz|mercedes|toyota/.test(
-      combinedNormalized,
-    )
-  ) {
-    return "enterprise";
-  }
-
-  if (/startup|works|labs|lab|studio|커뮤니케이션|communications|creative/.test(organizerNormalized)) {
-    return "startup";
-  }
-
-  return "community";
 }
 
 function buildFallbackStageSchedule(startDate?: string | null, deadline?: string | null, eventDate?: string | null) {
