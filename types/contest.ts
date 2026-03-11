@@ -117,6 +117,12 @@ export const teamArtifactStatusOptions = [
   { id: "ready", label: "준비 완료" },
 ] as const;
 
+export const teamActivityEventStateOptions = [
+  { id: "running", label: "진행 중" },
+  { id: "completed", label: "완료" },
+  { id: "failed", label: "실패" },
+] as const;
+
 export const teamRegenerateModeOptions = [
   { id: "single", label: "한 명 바꾸기" },
   { id: "all", label: "전부 새로 짜기" },
@@ -140,6 +146,7 @@ export type TeamTaskStatus = (typeof teamTaskStatusOptions)[number]["id"];
 export type TeamTaskPriority = (typeof teamTaskPriorityOptions)[number]["id"];
 export type TeamArtifactType = (typeof teamArtifactTypeOptions)[number]["id"];
 export type TeamArtifactStatus = (typeof teamArtifactStatusOptions)[number]["id"];
+export type TeamActivityEventState = (typeof teamActivityEventStateOptions)[number]["id"];
 export type TeamRegenerateMode = (typeof teamRegenerateModeOptions)[number]["id"];
 export type ContestMode = "online" | "offline" | "hybrid";
 export type ContestStatus = "draft" | "published" | "archived";
@@ -436,6 +443,19 @@ export interface TeamScoreEvent {
   createdAt: string;
 }
 
+export interface TeamActivityEvent {
+  id: string;
+  sequence: number;
+  title: string;
+  detail?: string | null;
+  state: TeamActivityEventState;
+  source: "system" | "ai" | "user";
+  actorMemberId?: string | null;
+  actorLabel?: string | null;
+  actorRole?: string | null;
+  createdAt: string;
+}
+
 export interface TeamMilestone {
   id: string;
   label: string;
@@ -462,6 +482,7 @@ export interface TeamSession {
   tasks: TeamTask[];
   artifacts: TeamArtifact[];
   scoreEvents: TeamScoreEvent[];
+  activityEvents: TeamActivityEvent[];
   updatedAt: string;
 }
 

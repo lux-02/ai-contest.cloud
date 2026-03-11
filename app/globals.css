@@ -695,6 +695,71 @@ a {
   padding: 0.85rem 0.9rem;
 }
 
+.team-live-dot,
+.team-activity-log-dot {
+  display: inline-flex;
+  height: 0.55rem;
+  width: 0.55rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.team-live-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 0 rgba(123, 160, 216, 0.5);
+  animation: team-live-pulse 1.4s ease-in-out infinite;
+}
+
+.team-activity-step,
+.team-activity-log {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.team-activity-step.is-current {
+  border-color: rgba(123, 160, 216, 0.18);
+  background: rgba(123, 160, 216, 0.12);
+  color: var(--foreground);
+}
+
+.team-activity-step.is-done {
+  color: var(--foreground);
+}
+
+.team-activity-index {
+  display: inline-flex;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.team-activity-log-dot {
+  background: var(--success);
+}
+
+.team-activity-log.is-error {
+  color: var(--danger);
+}
+
+.team-activity-log.is-error .team-activity-log-dot {
+  background: var(--danger);
+}
+
 .team-ring {
   position: relative;
   display: grid;
@@ -774,6 +839,20 @@ a {
   background: rgba(234, 139, 118, 0.1);
   padding: 0.95rem 1rem;
   color: var(--danger);
+}
+
+@keyframes team-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(123, 160, 216, 0.45);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(123, 160, 216, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(123, 160, 216, 0);
+  }
 }
 
 @media (max-width: 768px) {

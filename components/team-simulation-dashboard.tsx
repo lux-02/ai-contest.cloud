@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   FaArrowLeft,
   FaArrowRotateRight,
@@ -19,6 +19,7 @@ import {
 import { cn, getDaysUntil } from "@/lib/utils";
 import type {
   Contest,
+  TeamActivityEvent,
   TeamBootstrapResponse,
   TeamMember,
   TeamScoreEvent,
@@ -28,6 +29,28 @@ import type {
 
 type MainTab = "chat" | "artifacts" | "tasks";
 type MobilePanel = "team" | "workspace" | "status";
+type PendingActionKind =
+  | "kickoff"
+  | "chat"
+  | "regenerate-all"
+  | "regenerate-single"
+  | "claim-role"
+  | "task-move"
+  | "task-complete"
+  | "complete-session";
+
+type PendingDescriptor = {
+  kind: PendingActionKind;
+  memberName?: string;
+  taskTitle?: string;
+};
+
+type PendingActivityState = {
+  id: string;
+  title: string;
+  steps: string[];
+  index: number;
+};
 
 type TeamSimulationDashboardProps = {
   contest: Contest;
@@ -113,6 +136,103 @@ function getMemberStatusClass(status: TeamMember["status"]) {
   return "bg-[var(--success)]";
 }
 
+function buildPendingActivity(descriptor: PendingDescriptor): PendingActivityState {
+  const memberName = descriptor.memberName ?? "AI 팀원";
+  const taskTitle = descriptor.taskTitle ?? "현재 작업";
+
+  const table: Record<PendingActionKind, { title: string; steps: string[] }> = {
+    kickoff: {
+      title: "첫 작업 방향 정리 중",
+      steps: [
+        "공고와 확정 아이디어를 다시 읽는 중",
+        "지금 시작하기 좋은 역할 분담을 고르는 중",
+        "바로 움직일 첫 태스크를 정리하는 중",
+      ],
+    },
+    chat: {
+      title: "AI 팀이 답변을 만드는 중",
+      steps: [
+        "방금 보낸 메시지를 팀 전체에 공유하는 중",
+        "가장 잘 맞는 팀원이 먼저 답할 준비를 하는 중",
+        "다음 태스크와 작업물 후보를 정리하는 중",
+      ],
+    },
+    "regenerate-all": {
+      title: "팀 구성을 다시 짜는 중",
+      steps: [
+        "심사 기준과 제출물을 다시 훑어보는 중",
+        "이 공모전에 더 맞는 역할 조합을 고르는 중",
+        "새 킥오프와 첫 작업 흐름을 맞추는 중",
+      ],
+    },
+    "regenerate-single": {
+      title: `${memberName} 역할을 다시 고르는 중`,
+      steps: [
+        `${memberName} 역할에 필요한 기여를 다시 정리하는 중`,
+        "겹치지 않는 새로운 팀원을 찾는 중",
+        "새 역할을 전체 플로우에 맞춰 끼워 넣는 중",
+      ],
+    },
+    "claim-role": {
+      title: `${memberName} 역할을 내 역할로 반영 중`,
+      steps: [
+        "사용자가 맡는 역할로 팀 구성을 다시 보는 중",
+        "남은 AI 역할을 다시 정리하는 중",
+        "이후 태스크 우선순위를 다시 맞추는 중",
+      ],
+    },
+    "task-move": {
+      title: `${taskTitle} 진행 상태 업데이트 중`,
+      steps: [
+        "현재 담당자와 진행 단계를 다시 기록하는 중",
+        "다음으로 밀어야 할 작업을 다시 계산하는 중",
+        "우승 준비도와 급한 일을 다시 정리하는 중",
+      ],
+    },
+    "task-complete": {
+      title: `${taskTitle} 완료 반영 중`,
+      steps: [
+        "완료된 작업 결과를 팀 상태에 반영하는 중",
+        "준비도 상승과 다음 우선순위를 계산하는 중",
+        "새로 열어야 할 작업이나 작업물을 정리하는 중",
+      ],
+    },
+    "complete-session": {
+      title: "이번 준비 세션을 마무리하는 중",
+      steps: [
+        "지금까지 만든 결과물을 다시 정리하는 중",
+        "완료 마일스톤과 준비도를 마감 상태로 맞추는 중",
+        "다음 제출 단계에 필요한 요약을 남기는 중",
+      ],
+    },
+  };
+
+  const config = table[descriptor.kind];
+
+  return {
+    id: `${descriptor.kind}-${Date.now()}`,
+    title: config.title,
+    steps: config.steps,
+    index: 0,
+  };
+}
+
+function mergeActivityEvents(current: TeamActivityEvent[], incoming: TeamActivityEvent[]) {
+  const next = [...current];
+  const seen = new Set(current.map((event) => event.id));
+
+  for (const event of incoming) {
+    if (seen.has(event.id)) {
+      continue;
+    }
+
+    next.unshift(event);
+    seen.add(event.id);
+  }
+
+  return next.sort((left, right) => right.sequence - left.sequence).slice(0, 8);
+}
+
 function TaskColumn({
   title,
   tasks,
@@ -175,7 +295,10 @@ export function TeamSimulationDashboard({
   const [toast, setToast] = useState<string | null>(initialData.coachSummary ?? null);
   const [error, setError] = useState<string | null>(null);
   const [showIntroOverlay, setShowIntroOverlay] = useState(Boolean(initialData.justBootstrapped));
+  const [pendingActivity, setPendingActivity] = useState<PendingActivityState | null>(null);
+  const [activityEvents, setActivityEvents] = useState<TeamActivityEvent[]>(initialData.teamSession.activityEvents ?? []);
   const [isPending, startTransition] = useTransition();
+  const activityCursorRef = useRef(initialData.teamSession.activityEvents?.[0]?.sequence ?? 0);
 
   const teamSession = data.teamSession;
   const activeMembers = useMemo(
@@ -188,6 +311,20 @@ export function TeamSimulationDashboard({
   const doingTasks = teamSession.tasks.filter((task) => task.status === "in_progress");
   const doneTasks = teamSession.tasks.filter((task) => task.status === "done");
   const kickoffNotStarted = !teamSession.kickoffChoice;
+  const pendingActivityId = pendingActivity?.id;
+
+  const replaceActivityEvents = (nextEvents: TeamActivityEvent[]) => {
+    activityCursorRef.current = nextEvents[0]?.sequence ?? activityCursorRef.current;
+    setActivityEvents(nextEvents);
+  };
+
+  const appendActivityEvents = (incoming: TeamActivityEvent[]) => {
+    setActivityEvents((current) => {
+      const next = mergeActivityEvents(current, incoming);
+      activityCursorRef.current = next[0]?.sequence ?? activityCursorRef.current;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!toast) {
@@ -198,12 +335,71 @@ export function TeamSimulationDashboard({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (!pendingActivityId) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setPendingActivity((current) => {
+        if (!current) {
+          return null;
+        }
+
+        if (current.index >= current.steps.length - 1) {
+          return current;
+        }
+
+        return {
+          ...current,
+          index: current.index + 1,
+        };
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [pendingActivityId]);
+
+  useEffect(() => {
+    const initialSequence = activityCursorRef.current;
+    const source = new EventSource(
+      `/api/team/${contest.id}/events?teamSessionId=${teamSession.id}&afterSequence=${initialSequence}`,
+    );
+
+    source.addEventListener("team-activity", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as TeamActivityEvent;
+        appendActivityEvents([payload]);
+      } catch {
+        return;
+      }
+    });
+
+    source.addEventListener("team-error", () => {
+      setError("실시간 작업 현황 연결이 잠시 불안정합니다.");
+    });
+
+    source.onerror = () => {
+      source.close();
+    };
+
+    return () => {
+      source.close();
+    };
+  }, [contest.id, teamSession.id]);
+
   async function handleApi<T extends TeamSimulationTurnResponse | TeamBootstrapResponse>(
     endpoint: string,
     body: Record<string, unknown>,
+    pendingDescriptor?: PendingDescriptor,
     onSuccess?: (payload: T) => void,
   ) {
     setError(null);
+    const currentPending = pendingDescriptor ? buildPendingActivity(pendingDescriptor) : null;
+
+    if (currentPending) {
+      setPendingActivity(currentPending);
+    }
 
     startTransition(async () => {
       try {
@@ -218,12 +414,15 @@ export function TeamSimulationDashboard({
         const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
 
         if (!response.ok) {
+          setPendingActivity(null);
           setError(payload?.error ?? "팀 시뮬레이션을 처리하지 못했습니다.");
           return;
         }
 
         if ("teamSession" in (payload ?? {})) {
-          setData((payload as T) as TeamBootstrapResponse);
+          const nextPayload = (payload as T) as TeamBootstrapResponse;
+          setData(nextPayload);
+          replaceActivityEvents(nextPayload.teamSession.activityEvents ?? []);
         }
 
         const nextToast = (payload as TeamSimulationTurnResponse | null)?.toast ?? null;
@@ -232,8 +431,11 @@ export function TeamSimulationDashboard({
           setToast(nextToast);
         }
 
+        setPendingActivity(null);
+
         onSuccess?.(payload as T);
       } catch {
+        setPendingActivity(null);
         setError("팀 시뮬레이션을 처리하지 못했습니다.");
       }
     });
@@ -243,7 +445,7 @@ export function TeamSimulationDashboard({
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/chat`, {
       teamSessionId: teamSession.id,
       quickAction: optionId,
-    });
+    }, { kind: "kickoff" });
   }
 
   function handleSendMessage() {
@@ -256,53 +458,57 @@ export function TeamSimulationDashboard({
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/chat`, {
       teamSessionId: teamSession.id,
       message: nextMessage,
-    });
+    }, { kind: "chat" });
   }
 
   function handleRegenerateAll() {
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
       mode: "all",
-    });
+    }, { kind: "regenerate-all" });
   }
 
   function handleRegenerateSingle(memberId: string) {
+    const memberName = activeMembers.find((member) => member.id === memberId)?.name;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
       mode: "single",
       memberId,
-    });
+    }, { kind: "regenerate-single", memberName });
   }
 
   function handleClaimRole(memberId: string) {
+    const memberName = activeMembers.find((member) => member.id === memberId)?.name;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
       mode: "claim",
       memberId,
-    });
+    }, { kind: "claim-role", memberName });
   }
 
   function handleTaskMove(taskId: string, status: TeamTask["status"]) {
+    const taskTitle = teamSession.tasks.find((task) => task.id === taskId)?.title;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/tasks`, {
       teamSessionId: teamSession.id,
       taskId,
       action: "move",
       status,
-    });
+    }, { kind: "task-move", taskTitle });
   }
 
   function handleTaskComplete(taskId: string) {
+    const taskTitle = teamSession.tasks.find((task) => task.id === taskId)?.title;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/tasks`, {
       teamSessionId: teamSession.id,
       taskId,
       action: "complete",
-    });
+    }, { kind: "task-complete", taskTitle });
   }
 
   function handleCompleteTeam() {
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/complete`, {
       teamSessionId: teamSession.id,
-    });
+    }, { kind: "complete-session" });
   }
 
   const workspace = (
@@ -541,6 +747,51 @@ export function TeamSimulationDashboard({
       </div>
 
       <div className="mt-6">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">실시간 작업 현황</div>
+        <div className="mt-3 rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
+          {pendingActivity ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+                <span className="team-live-dot" />
+                {pendingActivity.title}
+              </div>
+              <div className="space-y-2">
+                {pendingActivity.steps.map((step, index) => (
+                  <div
+                    key={`${pendingActivity.id}-${step}`}
+                    className={cn(
+                      "team-activity-step",
+                      index < pendingActivity.index && "is-done",
+                      index === pendingActivity.index && "is-current",
+                    )}
+                  >
+                    <span className="team-activity-index">{index + 1}</span>
+                    <span>{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : activityEvents.length ? (
+            <div className="space-y-2">
+              {activityEvents.map((entry) => (
+                <div key={entry.id} className={cn("team-activity-log", entry.state === "failed" && "is-error")}>
+                  <span className="team-activity-log-dot" />
+                  <div>
+                    <div className="text-sm text-[var(--foreground)]">{entry.title}</div>
+                    {entry.detail ? <div className="mt-1 text-[11px] text-[var(--muted)]">{entry.detail}</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="team-empty-state">
+              아직 실시간 로그가 없습니다. 킥오프를 누르거나 팀과 대화를 시작하면 AI가 어떤 작업을 진행 중인지 순서대로 보여줍니다.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6">
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">최근 상승 로그</div>
         <div className="mt-3 space-y-2">
           {(teamSession.scoreEvents.slice(-4) as TeamScoreEvent[]).reverse().map((event) => (
@@ -682,7 +933,7 @@ export function TeamSimulationDashboard({
       {isPending ? (
         <div className="team-loading-chip">
           <FaChevronRight className="h-3.5 w-3.5 animate-pulse" aria-hidden />
-          팀이 다음 액션을 정리 중입니다.
+          {pendingActivity?.steps[pendingActivity.index] ?? "팀이 다음 액션을 정리 중입니다."}
         </div>
       ) : null}
     </>

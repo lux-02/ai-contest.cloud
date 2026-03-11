@@ -25,6 +25,7 @@ import { getContestTeamHandoff } from "@/lib/server/contest-ideation";
 import type {
   Contest,
   ContestTeamHandoff,
+  TeamActivityEvent,
   TeamArtifact,
   TeamBootstrapResponse,
   TeamKickoffOption,
@@ -117,6 +118,20 @@ type TeamScoreEventRow = QueryResultRow & {
   team_session_id: string;
   label: string;
   delta: number;
+  created_at: string;
+};
+
+type TeamActivityEventRow = QueryResultRow & {
+  id: string;
+  sequence: string | number;
+  team_session_id: string;
+  actor_member_id: string | null;
+  actor_label: string | null;
+  actor_role: string | null;
+  title: string;
+  detail: string | null;
+  state: TeamActivityEvent["state"];
+  source: TeamActivityEvent["source"];
   created_at: string;
 };
 
@@ -284,6 +299,21 @@ function buildTeamScoreEvent(row: TeamScoreEventRow): TeamScoreEvent {
   };
 }
 
+function buildTeamActivityEvent(row: TeamActivityEventRow): TeamActivityEvent {
+  return {
+    id: row.id,
+    sequence: typeof row.sequence === "string" ? Number(row.sequence) : row.sequence,
+    title: row.title,
+    detail: row.detail,
+    state: row.state,
+    source: row.source,
+    actorMemberId: row.actor_member_id,
+    actorLabel: row.actor_label,
+    actorRole: row.actor_role,
+    createdAt: row.created_at,
+  };
+}
+
 function buildTeamSessionSnapshot(
   row: TeamSessionRow,
   members: TeamMember[],
@@ -291,6 +321,7 @@ function buildTeamSessionSnapshot(
   tasks: TeamTask[],
   artifacts: TeamArtifact[],
   scoreEvents: TeamScoreEvent[],
+  activityEvents: TeamActivityEvent[],
 ): TeamSession {
   const teamSession: TeamSession = {
     id: row.id,
@@ -310,6 +341,7 @@ function buildTeamSessionSnapshot(
     tasks,
     artifacts,
     scoreEvents,
+    activityEvents,
     updatedAt: row.updated_at,
   };
 
@@ -436,13 +468,30 @@ async function getTeamScoreEventRows(client: PoolClient, teamSessionId: string) 
   return result.rows.slice().reverse();
 }
 
+async function getTeamActivityEventRows(client: PoolClient, teamSessionId: string, afterSequence?: number | null) {
+  const result = await client.query<TeamActivityEventRow>(
+    `
+      select *
+      from public.team_activity_events
+      where team_session_id = $1
+        and ($2::bigint is null or sequence > $2::bigint)
+      order by sequence desc
+      limit 18
+    `,
+    [teamSessionId, afterSequence ?? null],
+  );
+
+  return result.rows.slice().reverse();
+}
+
 async function readTeamSessionSnapshot(client: PoolClient, row: TeamSessionRow) {
-  const [memberRows, messageRows, taskRows, artifactRows, scoreEventRows] = await Promise.all([
+  const [memberRows, messageRows, taskRows, artifactRows, scoreEventRows, activityEventRows] = await Promise.all([
     getTeamMemberRows(client, row.id),
     getTeamMessageRows(client, row.id),
     getTeamTaskRows(client, row.id),
     getTeamArtifactRows(client, row.id),
     getTeamScoreEventRows(client, row.id),
+    getTeamActivityEventRows(client, row.id),
   ]);
 
   const members = memberRows.map(buildTeamMember);
@@ -451,8 +500,9 @@ async function readTeamSessionSnapshot(client: PoolClient, row: TeamSessionRow) 
   const tasks = taskRows.map((task) => buildTeamTask(task, membersById));
   const artifacts = artifactRows.map(buildTeamArtifact);
   const scoreEvents = scoreEventRows.map(buildTeamScoreEvent);
+  const activityEvents = activityEventRows.map(buildTeamActivityEvent);
 
-  return buildTeamSessionSnapshot(row, members, messages, tasks, artifacts, scoreEvents);
+  return buildTeamSessionSnapshot(row, members, messages, tasks, artifacts, scoreEvents, activityEvents);
 }
 
 async function insertTeamMembers(
@@ -641,6 +691,170 @@ async function insertScoreEvent(client: PoolClient, teamSessionId: string, label
   );
 }
 
+async function insertTeamActivityEvent(
+  client: PoolClient,
+  teamSessionId: string,
+  input: {
+    title: string;
+    detail?: string | null;
+    state: TeamActivityEvent["state"];
+    source: TeamActivityEvent["source"];
+    actorMemberId?: string | null;
+    actorLabel?: string | null;
+    actorRole?: string | null;
+  },
+) {
+  await client.query(
+    `
+      insert into public.team_activity_events (
+        team_session_id,
+        actor_member_id,
+        actor_label,
+        actor_role,
+        title,
+        detail,
+        state,
+        source
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      teamSessionId,
+      input.actorMemberId ?? null,
+      input.actorLabel ?? null,
+      input.actorRole ?? null,
+      input.title,
+      input.detail ?? null,
+      input.state,
+      input.source,
+    ],
+  );
+}
+
+async function insertTeamActivityEventDetached(
+  teamSessionId: string,
+  input: {
+    title: string;
+    detail?: string | null;
+    state: TeamActivityEvent["state"];
+    source: TeamActivityEvent["source"];
+    actorMemberId?: string | null;
+    actorLabel?: string | null;
+    actorRole?: string | null;
+  },
+) {
+  const pool = getDbPool();
+
+  await pool.query(
+    `
+      insert into public.team_activity_events (
+        team_session_id,
+        actor_member_id,
+        actor_label,
+        actor_role,
+        title,
+        detail,
+        state,
+        source
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      teamSessionId,
+      input.actorMemberId ?? null,
+      input.actorLabel ?? null,
+      input.actorRole ?? null,
+      input.title,
+      input.detail ?? null,
+      input.state,
+      input.source,
+    ],
+  );
+}
+
+function createDetachedProgressTracker(input: {
+  teamSessionId: string;
+  title: string;
+  source?: TeamActivityEvent["source"];
+  actorMemberId?: string | null;
+  actorLabel?: string | null;
+  actorRole?: string | null;
+  steps: string[];
+}) {
+  let index = 0;
+  let stopped = false;
+  const source = input.source ?? "system";
+
+  void insertTeamActivityEventDetached(input.teamSessionId, {
+    title: input.title,
+    detail: input.steps[0] ?? null,
+    state: "running",
+    source,
+    actorMemberId: input.actorMemberId,
+    actorLabel: input.actorLabel,
+    actorRole: input.actorRole,
+  }).catch(() => undefined);
+
+  const interval = globalThis.setInterval(() => {
+    if (stopped) {
+      return;
+    }
+
+    index += 1;
+
+    if (index >= input.steps.length) {
+      return;
+    }
+
+    void insertTeamActivityEventDetached(input.teamSessionId, {
+      title: input.title,
+      detail: input.steps[index],
+      state: "running",
+      source,
+      actorMemberId: input.actorMemberId,
+      actorLabel: input.actorLabel,
+      actorRole: input.actorRole,
+    }).catch(() => undefined);
+  }, 1000);
+
+  return {
+    async complete(detail?: string | null) {
+      if (stopped) {
+        return;
+      }
+
+      stopped = true;
+      globalThis.clearInterval(interval);
+      await insertTeamActivityEventDetached(input.teamSessionId, {
+        title: input.title,
+        detail: detail ?? input.steps[Math.min(index, input.steps.length - 1)] ?? null,
+        state: "completed",
+        source,
+        actorMemberId: input.actorMemberId,
+        actorLabel: input.actorLabel,
+        actorRole: input.actorRole,
+      }).catch(() => undefined);
+    },
+    async fail(detail?: string | null) {
+      if (stopped) {
+        return;
+      }
+
+      stopped = true;
+      globalThis.clearInterval(interval);
+      await insertTeamActivityEventDetached(input.teamSessionId, {
+        title: input.title,
+        detail: detail ?? "처리 중 오류가 발생했습니다.",
+        state: "failed",
+        source,
+        actorMemberId: input.actorMemberId,
+        actorLabel: input.actorLabel,
+        actorRole: input.actorRole,
+      }).catch(() => undefined);
+    },
+  };
+}
+
 async function updateTeamSessionRow(
   client: PoolClient,
   teamSessionId: string,
@@ -727,6 +941,29 @@ export async function getTeamSessionSnapshot(contestId: string, ideationSessionI
       coachSummary: null,
       justBootstrapped: false,
     } satisfies TeamBootstrapResponse;
+  } finally {
+    client.release();
+  }
+}
+
+export async function listTeamActivityEvents(input: {
+  contestId: string;
+  teamSessionId: string;
+  userId: string;
+  afterSequence?: number | null;
+}) {
+  const pool = getDbPool();
+  const client = await pool.connect();
+
+  try {
+    const row = await getTeamSessionRowById(client, input.teamSessionId, input.contestId, input.userId);
+
+    if (!row) {
+      throw new Error("팀 세션을 찾을 수 없습니다.");
+    }
+
+    const activityRows = await getTeamActivityEventRows(client, row.id, input.afterSequence ?? null);
+    return activityRows.map(buildTeamActivityEvent);
   } finally {
     client.release();
   }
@@ -866,6 +1103,22 @@ export async function bootstrapContestTeamSession(contestId: string, ideationSes
 
     await insertTeamMessages(client, teamSessionId, initialMessages);
     await insertScoreEvent(client, teamSessionId, "팀 구성 완료", TEAM_BOOTSTRAP_READINESS);
+    await insertTeamActivityEvent(client, teamSessionId, {
+      title: "팀 구성 완료",
+      detail: generated.reason ?? "공모전과 확정 아이디어에 맞는 첫 팀 구성을 만들었어요.",
+      state: "completed",
+      source: "system",
+      actorLabel: "팀 코치",
+      actorRole: "시스템",
+    });
+    await insertTeamActivityEvent(client, teamSessionId, {
+      title: "첫 작업 세팅 완료",
+      detail: "킥오프 선택지, 기본 태스크, 작업물 카드를 바로 시작할 수 있게 정리했어요.",
+      state: "completed",
+      source: "system",
+      actorLabel: "팀 코치",
+      actorRole: "시스템",
+    });
 
     const currentFocus = resolveCurrentFocus(
       generated.initialTasks.map((task) => ({
@@ -921,6 +1174,7 @@ export async function regenerateContestTeamSession(input: {
 }) {
   const pool = getDbPool();
   const client = await pool.connect();
+  let progressTracker: ReturnType<typeof createDetachedProgressTracker> | null = null;
 
   try {
     await client.query("begin");
@@ -969,6 +1223,15 @@ export async function regenerateContestTeamSession(input: {
           messageKind: "summary",
         },
       ]);
+      await insertTeamActivityEvent(client, row.id, {
+        title: "역할 직접 맡기기 완료",
+        detail: `${target.role} 역할을 직접 맡는 것으로 반영했어요.`,
+        state: "completed",
+        source: "user",
+        actorMemberId: target.id,
+        actorLabel: "나",
+        actorRole: "팀 리드",
+      });
 
     const refreshedRowAfterMeta = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
 
@@ -990,6 +1253,30 @@ export async function regenerateContestTeamSession(input: {
 
     const claimedRoles = session.members.filter((member) => member.isUserClaimed).map((member) => member.id);
     const currentMembers = session.members.filter((member) => member.isActive);
+    const targetMember = input.memberId ? session.members.find((member) => member.id === input.memberId) : null;
+
+    progressTracker = createDetachedProgressTracker({
+      teamSessionId: row.id,
+      title:
+        input.mode === "single"
+          ? `${targetMember?.role ?? "팀원"} 역할 다시 구성 중`
+          : "팀 구성 다시 정리 중",
+      source: "system",
+      actorLabel: "팀 코치",
+      actorRole: "시스템",
+      steps:
+        input.mode === "single"
+          ? [
+              "현재 역할에 비어 있는 기여를 다시 정리하는 중",
+              "겹치지 않는 새 팀원 후보를 고르는 중",
+              "남은 태스크 흐름과 연결하는 중",
+            ]
+          : [
+              "공고와 심사 기준 기준으로 팀 조합을 다시 보는 중",
+              "지금 아이디어에 맞는 역할 균형을 다시 맞추는 중",
+              "새로운 킥오프와 작업 흐름을 정리하는 중",
+            ],
+    });
 
     const generated = canUseRemoteContestTeamService()
       ? await generateContestTeamWithRemoteService({
@@ -1065,6 +1352,14 @@ export async function regenerateContestTeamSession(input: {
           messageKind: "summary",
         },
       ]);
+      await insertTeamActivityEvent(client, row.id, {
+        title: "한 명 바꾸기 완료",
+        detail: `${target.role} 역할을 새 팀원으로 교체했어요.`,
+        state: "completed",
+        source: "system",
+        actorLabel: "팀 코치",
+        actorRole: "시스템",
+      });
     }
 
     if (input.mode === "all") {
@@ -1119,6 +1414,14 @@ export async function regenerateContestTeamSession(input: {
           messageKind: "summary",
         },
       ]);
+      await insertTeamActivityEvent(client, row.id, {
+        title: "전체 팀 재구성 완료",
+        detail: "현재 공모전과 확정 아이디어 기준으로 새 팀 조합을 다시 맞췄어요.",
+        state: "completed",
+        source: "system",
+        actorLabel: "팀 코치",
+        actorRole: "시스템",
+      });
     }
 
     const updatedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
@@ -1139,6 +1442,9 @@ export async function regenerateContestTeamSession(input: {
 
     const teamSession = await readTeamSessionSnapshot(client, refreshedRowAfterMeta);
     await client.query("commit");
+    await progressTracker?.complete(
+      input.mode === "single" ? "교체한 역할까지 반영해서 팀 흐름을 다시 연결했어요." : "새 팀 구성으로 바로 다시 시작할 수 있어요.",
+    );
 
     return {
       teamSession,
@@ -1149,6 +1455,7 @@ export async function regenerateContestTeamSession(input: {
     } satisfies TeamSimulationTurnResponse;
   } catch (error) {
     await client.query("rollback");
+    await progressTracker?.fail("팀 구성을 다시 만드는 중 문제가 생겼어요.");
     throw error;
   } finally {
     client.release();
@@ -1366,6 +1673,7 @@ export async function simulateContestTeamTurn(input: {
 }) {
   const pool = getDbPool();
   const client = await pool.connect();
+  let progressTracker: ReturnType<typeof createDetachedProgressTracker> | null = null;
 
   try {
     await client.query("begin");
@@ -1426,6 +1734,27 @@ export async function simulateContestTeamTurn(input: {
     }
 
     const latestSession = await readTeamSessionSnapshot(client, refreshedBeforeRemote);
+    const leadMember = latestSession.members.find((member) => member.isActive);
+
+    progressTracker = createDetachedProgressTracker({
+      teamSessionId: row.id,
+      title: input.quickAction ? "첫 방향 기반으로 팀 움직이는 중" : "AI 팀이 다음 액션을 만드는 중",
+      source: "ai",
+      actorMemberId: leadMember?.id ?? null,
+      actorLabel: leadMember?.name ?? "AI 팀원",
+      actorRole: leadMember?.role ?? null,
+      steps: input.quickAction
+        ? [
+            "공고와 확정 아이디어를 다시 읽는 중",
+            "가장 먼저 밀어야 할 역할과 태스크를 정리하는 중",
+            "작업물 카드까지 이어질 다음 액션을 맞추는 중",
+          ]
+        : [
+            "방금 보낸 메시지를 팀 전체 문맥에 반영하는 중",
+            "가장 잘 맞는 팀원이 먼저 답할 내용을 고르는 중",
+            "다음 태스크와 작업물까지 같이 정리하는 중",
+          ],
+    });
 
     const remoteTurn = canUseRemoteContestTeamService()
       ? await simulateContestTeamTurnWithRemoteService({
@@ -1522,6 +1851,16 @@ export async function simulateContestTeamTurn(input: {
       ]);
     }
 
+    await insertTeamActivityEvent(client, row.id, {
+      title: input.quickAction ? "킥오프 방향 반영 완료" : "팀 응답 정리 완료",
+      detail: remoteTurn.coachSummary ?? "팀 메시지와 다음 액션을 같이 정리했어요.",
+      state: "completed",
+      source: "ai",
+      actorMemberId: leadMember?.id ?? null,
+      actorLabel: leadMember?.name ?? "AI 팀원",
+      actorRole: leadMember?.role ?? null,
+    });
+
     const finalRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
 
     if (!finalRow) {
@@ -1543,6 +1882,7 @@ export async function simulateContestTeamTurn(input: {
 
     const teamSession = await readTeamSessionSnapshot(client, updatedRow);
     await client.query("commit");
+    await progressTracker?.complete(remoteTurn.coachSummary ?? "팀이 다음 액션과 작업 흐름을 정리했어요.");
 
     return {
       teamSession,
@@ -1553,6 +1893,7 @@ export async function simulateContestTeamTurn(input: {
     } satisfies TeamSimulationTurnResponse;
   } catch (error) {
     await client.query("rollback");
+    await progressTracker?.fail("팀 응답을 만드는 중 문제가 생겼어요.");
     throw error;
   } finally {
     client.release();
@@ -1652,6 +1993,18 @@ export async function updateContestTeamTask(input: {
       await insertScoreEvent(client, row.id, delta > 0 ? "태스크 완료" : "태스크 되돌림", delta);
     }
 
+    await insertTeamActivityEvent(client, row.id, {
+      title: input.action === "complete" ? "태스크 완료 반영" : "태스크 상태 업데이트",
+      detail:
+        input.action === "complete"
+          ? `${task.title} 작업을 완료로 반영했어요.`
+          : `${task.title} 작업 흐름을 업데이트했어요.`,
+      state: "completed",
+      source: "user",
+      actorLabel: "나",
+      actorRole: "팀 리드",
+    });
+
     const refreshedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
 
     if (!refreshedRow) {
@@ -1734,6 +2087,15 @@ export async function createContestTeamArtifact(input: {
       await insertScoreEvent(client, row.id, "작업물 준비 완료", TEAM_ARTIFACT_READY_DELTA);
     }
 
+    await insertTeamActivityEvent(client, row.id, {
+      title: "작업물 카드 추가",
+      detail: `${input.title} 작업물을 팀 작업 흐름에 추가했어요.`,
+      state: "completed",
+      source: "user",
+      actorLabel: "나",
+      actorRole: "팀 리드",
+    });
+
     const refreshedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
 
     if (!refreshedRow) {
@@ -1803,6 +2165,14 @@ export async function completeContestTeamSession(input: {
         messageKind: "summary",
       },
     ]);
+    await insertTeamActivityEvent(client, row.id, {
+      title: "팀 준비 세션 완료",
+      detail: "이번 공모전 준비 세션을 마감 상태로 표시했어요.",
+      state: "completed",
+      source: "system",
+      actorLabel: "팀 코치",
+      actorRole: "시스템",
+    });
 
     const updatedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
 
