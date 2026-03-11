@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { getContestBySlug } from "@/lib/queries";
 import { drainIdeationJobs, getIdeationJobById } from "@/lib/server/ideation-generation-jobs";
@@ -22,16 +22,19 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "대회를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const job = await getIdeationJobById(jobId, contest.id);
+    let job = await getIdeationJobById(jobId, contest.id);
 
     if (!job) {
       return NextResponse.json({ error: "브레인스토밍 job을 찾을 수 없습니다." }, { status: 404 });
     }
 
     if (job.status === "queued" || job.status === "running") {
-      after(async () => {
-        await drainIdeationJobs({ preferredJobId: job.id, limit: 1 });
-      });
+      await drainIdeationJobs({ preferredJobId: job.id, limit: 1 });
+      job = await getIdeationJobById(jobId, contest.id);
+
+      if (!job) {
+        return NextResponse.json({ error: "브레인스토밍 job을 찾을 수 없습니다." }, { status: 404 });
+      }
     }
 
     return NextResponse.json(

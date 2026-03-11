@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { drainTeamBootstrapJobs, drainTeamTurnJobs, getTeamJobById } from "@/lib/server/team-generation-jobs";
 import { getTeamApiContext } from "@/lib/server/team-api";
@@ -36,21 +36,24 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "job kind 정보가 필요합니다." }, { status: 400 });
     }
 
-    const job = await getTeamJobById(jobId, kind, contestId);
+    let job = await getTeamJobById(jobId, kind, contestId);
 
     if (!job) {
       return NextResponse.json({ error: "팀 작업 job을 찾을 수 없습니다." }, { status: 404 });
     }
 
     if (job.status === "queued" || job.status === "running") {
-      after(async () => {
-        if (kind === "bootstrap") {
-          await drainTeamBootstrapJobs({ preferredJobId: job.id, limit: 1 });
-          return;
-        }
-
+      if (kind === "bootstrap") {
+        await drainTeamBootstrapJobs({ preferredJobId: job.id, limit: 1 });
+      } else {
         await drainTeamTurnJobs({ preferredJobId: job.id, limit: 1 });
-      });
+      }
+
+      job = await getTeamJobById(jobId, kind, contestId);
+
+      if (!job) {
+        return NextResponse.json({ error: "팀 작업 job을 찾을 수 없습니다." }, { status: 404 });
+      }
     }
 
     return NextResponse.json(

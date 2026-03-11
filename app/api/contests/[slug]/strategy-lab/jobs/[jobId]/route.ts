@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { getContestBySlug } from "@/lib/queries";
 import { drainStrategyLabJobs, getStrategyLabJobById } from "@/lib/server/ai-generation-jobs";
@@ -22,16 +22,19 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "대회를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const job = await getStrategyLabJobById(jobId, contest.id);
+    let job = await getStrategyLabJobById(jobId, contest.id);
 
     if (!job) {
       return NextResponse.json({ error: "전략 생성 job을 찾을 수 없습니다." }, { status: 404 });
     }
 
     if (job.status === "queued" || job.status === "running") {
-      after(async () => {
-        await drainStrategyLabJobs({ preferredJobId: job.id, limit: 1 });
-      });
+      await drainStrategyLabJobs({ preferredJobId: job.id, limit: 1 });
+      job = await getStrategyLabJobById(jobId, contest.id);
+
+      if (!job) {
+        return NextResponse.json({ error: "전략 생성 job을 찾을 수 없습니다." }, { status: 404 });
+      }
     }
 
     return NextResponse.json(
