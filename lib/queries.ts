@@ -504,6 +504,11 @@ export async function getContestBySlug(slug: string) {
   return contests.find((contest) => contest.slug === slug) ?? null;
 }
 
+export async function getContestById(id: string) {
+  const contests = await fetchContestDataset();
+  return contests.find((contest) => contest.id === id) ?? null;
+}
+
 export async function getFeaturedContestSections() {
   const contests = await fetchContestDataset();
 

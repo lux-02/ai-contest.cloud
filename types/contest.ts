@@ -72,6 +72,57 @@ export const contestDecisionMatrixPresetOptions = [
   { id: "deadline", label: "마감압박형" },
 ] as const;
 
+export const teamSessionStatusOptions = [
+  { id: "draft", label: "준비 중" },
+  { id: "active", label: "진행 중" },
+  { id: "completed", label: "완료" },
+  { id: "archived", label: "보관됨" },
+] as const;
+
+export const teamMemberStatusOptions = [
+  { id: "online", label: "온라인" },
+  { id: "working", label: "작업 중" },
+  { id: "resting", label: "정리 중" },
+] as const;
+
+export const teamMessageKindOptions = [
+  { id: "chat", label: "대화" },
+  { id: "summary", label: "요약" },
+  { id: "task_update", label: "태스크" },
+  { id: "artifact_update", label: "작업물" },
+] as const;
+
+export const teamTaskStatusOptions = [
+  { id: "todo", label: "해야 할 일" },
+  { id: "in_progress", label: "진행 중" },
+  { id: "done", label: "완료" },
+] as const;
+
+export const teamTaskPriorityOptions = [
+  { id: "low", label: "낮음" },
+  { id: "medium", label: "보통" },
+  { id: "high", label: "높음" },
+] as const;
+
+export const teamArtifactTypeOptions = [
+  { id: "brief", label: "기획서 초안" },
+  { id: "pitch", label: "발표 구조" },
+  { id: "checklist", label: "체크리스트" },
+  { id: "prototype-note", label: "프로토타입 메모" },
+  { id: "judging-note", label: "심사 포인트 대응 메모" },
+] as const;
+
+export const teamArtifactStatusOptions = [
+  { id: "draft", label: "초안" },
+  { id: "ready", label: "준비 완료" },
+] as const;
+
+export const teamRegenerateModeOptions = [
+  { id: "single", label: "한 명 바꾸기" },
+  { id: "all", label: "전부 새로 짜기" },
+  { id: "claim", label: "이 역할은 내가 할게" },
+] as const;
+
 export type ContestBadge = (typeof contestBadgeOptions)[number]["id"];
 export type ContestCategory = (typeof contestCategoryOptions)[number]["id"];
 export type ContestDifficulty = (typeof difficultyOptions)[number]["id"];
@@ -82,6 +133,14 @@ export type ContestTrackingStatus = (typeof contestTrackingStatusOptions)[number
 export type ContestIdeationStatus = (typeof contestIdeationStatusOptions)[number]["id"];
 export type ContestIdeationStage = (typeof contestIdeationStageOptions)[number]["id"];
 export type ContestDecisionMatrixPreset = (typeof contestDecisionMatrixPresetOptions)[number]["id"];
+export type TeamSessionStatus = (typeof teamSessionStatusOptions)[number]["id"];
+export type TeamMemberStatus = (typeof teamMemberStatusOptions)[number]["id"];
+export type TeamMessageKind = (typeof teamMessageKindOptions)[number]["id"];
+export type TeamTaskStatus = (typeof teamTaskStatusOptions)[number]["id"];
+export type TeamTaskPriority = (typeof teamTaskPriorityOptions)[number]["id"];
+export type TeamArtifactType = (typeof teamArtifactTypeOptions)[number]["id"];
+export type TeamArtifactStatus = (typeof teamArtifactStatusOptions)[number]["id"];
+export type TeamRegenerateMode = (typeof teamRegenerateModeOptions)[number]["id"];
 export type ContestMode = "online" | "offline" | "hybrid";
 export type ContestStatus = "draft" | "published" | "archived";
 export type ContestAnalysisStatus = "pending" | "completed" | "failed";
@@ -307,6 +366,119 @@ export interface ContestTeamHandoff {
   ideaDescription: string;
   matrixSummary: string;
   nextStep: string;
+}
+
+export interface TeamKickoffOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface TeamMember {
+  id: string;
+  memberKey: string;
+  name: string;
+  role: string;
+  englishRole?: string | null;
+  personality: string;
+  mainContribution: string;
+  skills: string[];
+  introLine: string;
+  status: TeamMemberStatus;
+  avatarSeed: string;
+  isUserClaimed: boolean;
+  isActive: boolean;
+  isHuman?: boolean;
+  sortOrder: number;
+}
+
+export interface TeamMessage {
+  id: string;
+  authorType: "user" | "ai" | "system";
+  memberId?: string | null;
+  speakerName: string;
+  speakerRole?: string | null;
+  body: string;
+  messageKind: TeamMessageKind;
+  createdAt: string;
+}
+
+export interface TeamTask {
+  id: string;
+  title: string;
+  description: string;
+  status: TeamTaskStatus;
+  priority: TeamTaskPriority;
+  assigneeMemberId?: string | null;
+  assigneeLabel?: string | null;
+  origin: "bootstrap" | "chat" | "manual";
+  readinessDelta: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamArtifact {
+  id: string;
+  artifactType: TeamArtifactType;
+  title: string;
+  summary: string;
+  body: string;
+  status: TeamArtifactStatus;
+  sourceTaskId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamScoreEvent {
+  id: string;
+  label: string;
+  delta: number;
+  createdAt: string;
+}
+
+export interface TeamMilestone {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface TeamSession {
+  id: string;
+  contestId: string;
+  ideationSessionId: string;
+  userId: string;
+  status: TeamSessionStatus;
+  teamName: string;
+  teamIntro: string;
+  readinessScore: number;
+  currentFocus?: string | null;
+  kickoffChoice?: string | null;
+  claimedRoleIds: string[];
+  kickoffOptions: TeamKickoffOption[];
+  completionSummary?: string;
+  milestones?: TeamMilestone[];
+  members: TeamMember[];
+  messages: TeamMessage[];
+  tasks: TeamTask[];
+  artifacts: TeamArtifact[];
+  scoreEvents: TeamScoreEvent[];
+  updatedAt: string;
+}
+
+export interface TeamBootstrapResponse {
+  teamSession: TeamSession;
+  handoff: ContestTeamHandoff;
+  kickoffOptions: TeamKickoffOption[];
+  coachSummary?: string | null;
+  justBootstrapped?: boolean;
+}
+
+export interface TeamSimulationTurnResponse {
+  teamSession: TeamSession;
+  handoff: ContestTeamHandoff;
+  kickoffOptions: TeamKickoffOption[];
+  coachSummary?: string | null;
+  toast?: string | null;
 }
 
 export interface ContestFilters {

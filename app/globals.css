@@ -403,6 +403,379 @@ a {
   opacity: 0.9;
 }
 
+.team-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background: rgba(14, 17, 21, 0.9);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.team-head-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.45rem 0.8rem;
+}
+
+.team-header-focus {
+  width: min(100%, 18rem);
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem 1.05rem;
+}
+
+.team-side-panel,
+.team-dashboard-center {
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background: rgba(14, 17, 21, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.team-side-panel {
+  padding: 1.3rem;
+}
+
+.team-dashboard-center {
+  padding: 1.35rem;
+}
+
+.team-member-card {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.team-member-card.is-human {
+  background: rgba(245, 241, 232, 0.05);
+}
+
+.team-avatar {
+  display: inline-flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(123, 160, 216, 0.15));
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.team-status-dot {
+  display: inline-flex;
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 999px;
+}
+
+.team-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--foreground);
+}
+
+.team-workspace-tabs,
+.team-mobile-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.team-tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.team-tab-button.is-active {
+  border-color: rgba(245, 241, 232, 0.18);
+  background: rgba(245, 241, 232, 0.12);
+  color: var(--foreground);
+}
+
+.team-chat-surface {
+  margin-top: 1rem;
+  display: flex;
+  min-height: 720px;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.team-kickoff-card,
+.team-focus-card,
+.team-task-card,
+.team-artifact-card,
+.team-overlay-member {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.team-chat-log {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.team-message-card {
+  max-width: 88%;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.team-message-card.is-user {
+  margin-left: auto;
+  background: rgba(245, 241, 232, 0.09);
+}
+
+.team-message-card.is-system {
+  max-width: 100%;
+  border-style: dashed;
+  background: rgba(123, 160, 216, 0.08);
+}
+
+.team-chat-composer {
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.team-chat-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 0.95rem 1rem;
+  color: var(--foreground);
+  font: inherit;
+  outline: none;
+}
+
+.team-chat-textarea:focus {
+  border-color: rgba(245, 241, 232, 0.16);
+}
+
+.team-artifact-card {
+  padding: 1.1rem;
+}
+
+.team-artifact-label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.team-status-pill,
+.team-task-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.team-status-pill.is-ready {
+  border-color: rgba(136, 209, 171, 0.26);
+  background: rgba(136, 209, 171, 0.12);
+  color: var(--foreground);
+}
+
+.team-kanban-column {
+  border-radius: 26px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+.team-kanban-title {
+  margin-bottom: 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.team-empty-state {
+  border-radius: 22px;
+  border: 1px dashed var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.team-milestone-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0.8rem 0.9rem;
+}
+
+.team-milestone-check {
+  display: inline-flex;
+  height: 1.35rem;
+  width: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: transparent;
+}
+
+.team-milestone-check.is-done {
+  border-color: rgba(136, 209, 171, 0.28);
+  background: rgba(136, 209, 171, 0.14);
+  color: var(--foreground);
+}
+
+.team-score-event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0.85rem 0.9rem;
+}
+
+.team-ring {
+  position: relative;
+  display: grid;
+  height: 84px;
+  width: 84px;
+  place-items: center;
+}
+
+.team-ring-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, rgba(5, 6, 8, 0.95) 58%, transparent 59%),
+    conic-gradient(var(--accent) calc(var(--team-progress) * 1%), rgba(255, 255, 255, 0.08) 0);
+}
+
+.team-ring-label {
+  position: relative;
+  z-index: 1;
+  width: 3.5rem;
+  text-align: center;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.team-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(3, 4, 6, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.team-overlay-card {
+  width: min(100%, 56rem);
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  background: rgba(14, 17, 21, 0.96);
+  padding: 1.5rem;
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.44);
+}
+
+.team-toast,
+.team-loading-chip {
+  position: fixed;
+  left: 50%;
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 241, 232, 0.14);
+  background: rgba(14, 17, 21, 0.94);
+  padding: 0.85rem 1.1rem;
+  color: var(--foreground);
+  transform: translateX(-50%);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
+}
+
+.team-toast {
+  bottom: 1.5rem;
+}
+
+.team-loading-chip {
+  top: 1.2rem;
+}
+
+.team-error-banner {
+  border-radius: 22px;
+  border: 1px solid rgba(234, 139, 118, 0.24);
+  background: rgba(234, 139, 118, 0.1);
+  padding: 0.95rem 1rem;
+  color: var(--danger);
+}
+
 @media (max-width: 768px) {
   .surface-card {
     backdrop-filter: blur(10px);
@@ -416,5 +789,24 @@ a {
   .poster-shell {
     min-height: 280px;
     border-radius: 24px;
+  }
+
+  .team-page-header,
+  .team-side-panel,
+  .team-dashboard-center,
+  .team-overlay-card {
+    border-radius: 28px;
+  }
+
+  .team-chat-surface {
+    min-height: auto;
+  }
+
+  .team-message-card {
+    max-width: 100%;
+  }
+
+  .team-header-focus {
+    width: 100%;
   }
 }
