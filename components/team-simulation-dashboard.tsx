@@ -20,7 +20,10 @@ import {
 import { cn, getDaysUntil } from "@/lib/utils";
 import type {
   Contest,
+  ContestTeamHandoff,
   TeamActivityEvent,
+  TeamAsyncJobResponse,
+  TeamAsyncJobSnapshot,
   TeamBootstrapResponse,
   TeamMember,
   TeamScoreEvent,
@@ -56,7 +59,9 @@ type PendingActivityState = {
 type TeamSimulationDashboardProps = {
   contest: Contest;
   viewerLabel: string;
-  initialData: TeamBootstrapResponse;
+  ideationSessionId: string;
+  initialHandoff: ContestTeamHandoff;
+  initialData: TeamBootstrapResponse | null;
 };
 
 function formatRelativeDate(value?: string) {
@@ -287,31 +292,37 @@ function TaskColumn({
 export function TeamSimulationDashboard({
   contest,
   viewerLabel,
+  ideationSessionId,
+  initialHandoff,
   initialData,
 }: TeamSimulationDashboardProps) {
   const [data, setData] = useState(initialData);
   const [activeTab, setActiveTab] = useState<MainTab>("chat");
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("workspace");
   const [message, setMessage] = useState("");
-  const [toast, setToast] = useState<string | null>(initialData.coachSummary ?? null);
+  const [toast, setToast] = useState<string | null>(initialData?.coachSummary ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [showIntroOverlay, setShowIntroOverlay] = useState(Boolean(initialData.justBootstrapped));
+  const [showIntroOverlay, setShowIntroOverlay] = useState(Boolean(initialData?.justBootstrapped));
   const [pendingActivity, setPendingActivity] = useState<PendingActivityState | null>(null);
-  const [activityEvents, setActivityEvents] = useState<TeamActivityEvent[]>(initialData.teamSession.activityEvents ?? []);
+  const [activityEvents, setActivityEvents] = useState<TeamActivityEvent[]>(initialData?.teamSession.activityEvents ?? []);
+  const [bootstrapJob, setBootstrapJob] = useState<TeamAsyncJobSnapshot | null>(null);
+  const [turnJob, setTurnJob] = useState<TeamAsyncJobSnapshot | null>(null);
   const [isPending, startTransition] = useTransition();
-  const activityCursorRef = useRef(initialData.teamSession.activityEvents?.[0]?.sequence ?? 0);
+  const activityCursorRef = useRef(initialData?.teamSession.activityEvents?.[0]?.sequence ?? 0);
 
-  const teamSession = data.teamSession;
+  const teamSession = data?.teamSession ?? null;
   const activeMembers = useMemo(
-    () => teamSession.members.filter((member) => member.isActive),
-    [teamSession.members],
+    () => teamSession?.members.filter((member) => member.isActive) ?? [],
+    [teamSession?.members],
   );
+  const kickoffOptions = data?.kickoffOptions ?? [];
+  const coachSummary = data?.coachSummary ?? null;
   const featuredMember = activeMembers[0];
   const daysUntilDeadline = getDaysUntil(contest.deadline);
-  const todoTasks = teamSession.tasks.filter((task) => task.status === "todo");
-  const doingTasks = teamSession.tasks.filter((task) => task.status === "in_progress");
-  const doneTasks = teamSession.tasks.filter((task) => task.status === "done");
-  const kickoffNotStarted = !teamSession.kickoffChoice;
+  const todoTasks = teamSession?.tasks.filter((task) => task.status === "todo") ?? [];
+  const doingTasks = teamSession?.tasks.filter((task) => task.status === "in_progress") ?? [];
+  const doneTasks = teamSession?.tasks.filter((task) => task.status === "done") ?? [];
+  const kickoffNotStarted = !teamSession?.kickoffChoice;
   const pendingActivityId = pendingActivity?.id;
 
   const replaceActivityEvents = (nextEvents: TeamActivityEvent[]) => {
@@ -362,6 +373,10 @@ export function TeamSimulationDashboard({
   }, [pendingActivityId]);
 
   useEffect(() => {
+    if (!teamSession) {
+      return undefined;
+    }
+
     const initialSequence = activityCursorRef.current;
     const source = new EventSource(
       `/api/team/${contest.id}/events?teamSessionId=${teamSession.id}&afterSequence=${initialSequence}`,
@@ -387,7 +402,127 @@ export function TeamSimulationDashboard({
     return () => {
       source.close();
     };
-  }, [contest.id, teamSession.id]);
+  }, [contest.id, teamSession]);
+
+  useEffect(() => {
+    if (data || bootstrapJob) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/team/${contest.id}/bootstrap/jobs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ideationSessionId,
+          }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as (TeamAsyncJobResponse & { error?: string }) | null;
+
+        if (!response.ok) {
+          setError(payload?.error ?? "팀 빌딩을 시작하지 못했습니다.");
+          return;
+        }
+
+        if (payload?.snapshot) {
+          const nextSnapshot = payload.snapshot as TeamBootstrapResponse;
+          setData(nextSnapshot);
+          replaceActivityEvents(nextSnapshot.teamSession.activityEvents ?? []);
+          setToast(nextSnapshot.coachSummary ?? null);
+          setShowIntroOverlay(Boolean(nextSnapshot.justBootstrapped));
+          return;
+        }
+
+        if (payload?.job) {
+          setBootstrapJob(payload.job);
+        }
+      } catch {
+        setError("팀 빌딩을 시작하지 못했습니다.");
+      }
+    });
+  }, [bootstrapJob, contest.id, data, ideationSessionId]);
+
+  useEffect(() => {
+    if (!bootstrapJob || bootstrapJob.status === "completed" || bootstrapJob.status === "failed") {
+      return undefined;
+    }
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/team/${contest.id}/jobs/${bootstrapJob.id}?kind=bootstrap`);
+        const payload = (await response.json().catch(() => null)) as (TeamAsyncJobResponse & { error?: string }) | null;
+
+        if (!response.ok) {
+          setBootstrapJob(null);
+          setError(payload?.error ?? "팀 구성을 불러오지 못했습니다.");
+          return;
+        }
+
+        if (payload?.job) {
+          setBootstrapJob(payload.job);
+        }
+
+        if (payload?.snapshot) {
+          const nextSnapshot = payload.snapshot as TeamBootstrapResponse;
+          setData(nextSnapshot);
+          replaceActivityEvents(nextSnapshot.teamSession.activityEvents ?? []);
+          setToast(nextSnapshot.coachSummary ?? null);
+          setShowIntroOverlay(Boolean(nextSnapshot.justBootstrapped));
+          setBootstrapJob(null);
+        }
+      } catch {
+        setBootstrapJob(null);
+        setError("팀 구성을 불러오지 못했습니다.");
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [bootstrapJob, contest.id]);
+
+  useEffect(() => {
+    if (!turnJob || turnJob.status === "completed" || turnJob.status === "failed") {
+      return undefined;
+    }
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/team/${contest.id}/jobs/${turnJob.id}?kind=turn`);
+        const payload = (await response.json().catch(() => null)) as (TeamAsyncJobResponse & { error?: string }) | null;
+
+        if (!response.ok) {
+          setPendingActivity(null);
+          setTurnJob(null);
+          setError(payload?.error ?? "팀 응답을 불러오지 못했습니다.");
+          return;
+        }
+
+        if (payload?.job) {
+          setTurnJob(payload.job);
+        }
+
+        if (payload?.snapshot) {
+          const nextSnapshot = payload.snapshot as TeamSimulationTurnResponse;
+          setData(nextSnapshot as TeamBootstrapResponse);
+          replaceActivityEvents(nextSnapshot.teamSession.activityEvents ?? []);
+          if (nextSnapshot.toast) {
+            setToast(nextSnapshot.toast);
+          }
+          setPendingActivity(null);
+          setTurnJob(null);
+        }
+      } catch {
+        setPendingActivity(null);
+        setTurnJob(null);
+        setError("팀 응답을 불러오지 못했습니다.");
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [contest.id, turnJob]);
 
   async function handleApi<T extends TeamSimulationTurnResponse | TeamBootstrapResponse>(
     endpoint: string,
@@ -442,27 +577,89 @@ export function TeamSimulationDashboard({
     });
   }
 
+  function handleAsyncTeamJob(
+    endpoint: string,
+    body: Record<string, unknown>,
+    pendingDescriptor?: PendingDescriptor,
+  ) {
+    setError(null);
+    const currentPending = pendingDescriptor ? buildPendingActivity(pendingDescriptor) : null;
+
+    if (currentPending) {
+      setPendingActivity(currentPending);
+    }
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+
+        const payload = (await response.json().catch(() => null)) as (TeamAsyncJobResponse & { error?: string }) | null;
+
+        if (!response.ok) {
+          setPendingActivity(null);
+          setError(payload?.error ?? "팀 작업을 시작하지 못했습니다.");
+          return;
+        }
+
+        if (payload?.snapshot) {
+          const nextSnapshot = payload.snapshot as TeamSimulationTurnResponse;
+          setData(nextSnapshot as TeamBootstrapResponse);
+          replaceActivityEvents(nextSnapshot.teamSession.activityEvents ?? []);
+          if ("toast" in nextSnapshot && nextSnapshot.toast) {
+            setToast(nextSnapshot.toast);
+          } else if ("coachSummary" in nextSnapshot) {
+            setToast(nextSnapshot.coachSummary ?? null);
+          }
+          setPendingActivity(null);
+          setTurnJob(null);
+          return;
+        }
+
+        if (payload?.job) {
+          setTurnJob(payload.job);
+        }
+      } catch {
+        setPendingActivity(null);
+        setError("팀 작업을 시작하지 못했습니다.");
+      }
+    });
+  }
+
   function handleKickoff(optionId: string) {
-    void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/chat`, {
+    if (!teamSession) {
+      return;
+    }
+
+    handleAsyncTeamJob(`/api/team/${contest.id}/chat/jobs`, {
       teamSessionId: teamSession.id,
       quickAction: optionId,
     }, { kind: "kickoff" });
   }
 
   function handleSendMessage() {
-    if (!message.trim()) {
+    if (!teamSession || !message.trim()) {
       return;
     }
 
     const nextMessage = message.trim();
     setMessage("");
-    void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/chat`, {
+    handleAsyncTeamJob(`/api/team/${contest.id}/chat/jobs`, {
       teamSessionId: teamSession.id,
       message: nextMessage,
     }, { kind: "chat" });
   }
 
   function handleRegenerateAll() {
+    if (!teamSession) {
+      return;
+    }
+
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
       mode: "all",
@@ -470,6 +667,10 @@ export function TeamSimulationDashboard({
   }
 
   function handleRegenerateSingle(memberId: string) {
+    if (!teamSession) {
+      return;
+    }
+
     const memberName = activeMembers.find((member) => member.id === memberId)?.name;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
@@ -479,6 +680,10 @@ export function TeamSimulationDashboard({
   }
 
   function handleClaimRole(memberId: string) {
+    if (!teamSession) {
+      return;
+    }
+
     const memberName = activeMembers.find((member) => member.id === memberId)?.name;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/regenerate`, {
       teamSessionId: teamSession.id,
@@ -488,6 +693,10 @@ export function TeamSimulationDashboard({
   }
 
   function handleTaskMove(taskId: string, status: TeamTask["status"]) {
+    if (!teamSession) {
+      return;
+    }
+
     const taskTitle = teamSession.tasks.find((task) => task.id === taskId)?.title;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/tasks`, {
       teamSessionId: teamSession.id,
@@ -498,6 +707,10 @@ export function TeamSimulationDashboard({
   }
 
   function handleTaskComplete(taskId: string) {
+    if (!teamSession) {
+      return;
+    }
+
     const taskTitle = teamSession.tasks.find((task) => task.id === taskId)?.title;
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/tasks`, {
       teamSessionId: teamSession.id,
@@ -507,9 +720,67 @@ export function TeamSimulationDashboard({
   }
 
   function handleCompleteTeam() {
+    if (!teamSession) {
+      return;
+    }
+
     void handleApi<TeamSimulationTurnResponse>(`/api/team/${contest.id}/complete`, {
       teamSessionId: teamSession.id,
     }, { kind: "complete-session" });
+  }
+
+  if (!teamSession) {
+    return (
+      <>
+        <main className="mx-auto max-w-[960px] px-4 py-10 md:px-6">
+          <header className="team-page-header">
+            <div className="flex items-start gap-3">
+              <Link href={`/contests/${contest.slug}`} className="hero-action-button shrink-0" aria-label="공모전 상세로 돌아가기">
+                <FaArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+              <div className="min-w-0">
+                <div className="eyebrow">Team Simulation</div>
+                <h1 className="text-balance mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
+                  {contest.title}
+                </h1>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                  <span className="team-head-pill chip-nowrap">{contest.organizer}</span>
+                  <span className="team-head-pill chip-nowrap">{daysUntilDeadline === null ? "D-day 미정" : `D-${daysUntilDeadline}`}</span>
+                  <span className="team-head-pill chip-nowrap">{formatRelativeDate(contest.deadline)}</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {error ? <div className="team-error-banner mt-5">{error}</div> : null}
+
+          <section className="surface-card mt-6 rounded-[32px] p-7 md:p-8">
+            <div className="eyebrow">팀 빌딩 준비</div>
+            <h2 className="text-balance mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
+              {bootstrapJob ? "AI 팀 구성을 만드는 중입니다." : "확정한 아이디어로 팀을 세팅하는 중입니다."}
+            </h2>
+            <p className="text-pretty mt-4 text-sm leading-7 text-[var(--muted)]">
+              {initialHandoff.ideaTitle} 아이디어를 기준으로 공고, 심사 기준, 제출 형식까지 같이 보고 있어요. 준비가 끝나면 바로 팀 대시보드가 열립니다.
+            </p>
+
+            <div className="loading-note mt-6">
+              <span className="loading-note-spinner" aria-hidden />
+              <div className="min-w-0">
+                <div className="loading-note-title">{bootstrapJob?.progressLabel ?? "이 공모전에 맞는 역할 조합을 만들고 있어요"}</div>
+                <div className="loading-note-body">잠깐만 기다리면 킥오프 선택지, 첫 태스크, 작업물 카드까지 같이 붙여서 열어둘게요.</div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        {isPending ? (
+          <div className="team-loading-chip">
+            <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {bootstrapJob?.progressLabel ?? "AI 팀 구성을 준비 중입니다."}
+          </div>
+        ) : null}
+      </>
+    );
   }
 
   const workspace = (
@@ -546,7 +817,7 @@ export function TeamSimulationDashboard({
                 {featuredMember?.name ?? "AI 팀장"}이 먼저 팀을 열어둘게요. 무엇부터 시작할지 하나만 골라주세요.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {data.kickoffOptions.map((option) => (
+                {kickoffOptions.map((option) => (
                   <button key={option.id} type="button" onClick={() => handleKickoff(option.id)} className="secondary-button">
                     <FaBolt className="h-3.5 w-3.5" aria-hidden />
                     {option.label}
@@ -884,7 +1155,7 @@ export function TeamSimulationDashboard({
               {teamSession.teamName}
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-              {data.coachSummary ?? "이 공모전에 맞는 팀을 만들었어요. 역할이 마음에 들면 바로 시작하고, 아니면 한 번 더 조정할 수 있어요."}
+              {coachSummary ?? "이 공모전에 맞는 팀을 만들었어요. 역할이 마음에 들면 바로 시작하고, 아니면 한 번 더 조정할 수 있어요."}
             </p>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">

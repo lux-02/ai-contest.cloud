@@ -101,3 +101,32 @@ export async function releaseLock(key: string, value: string) {
     return;
   }
 }
+
+export async function pushQueueItem(key: string, value: string) {
+  const redis = getUpstashRedis();
+
+  if (!redis) {
+    return;
+  }
+
+  try {
+    await redis.lpush(key, value);
+  } catch {
+    return;
+  }
+}
+
+export async function popQueueItem(key: string) {
+  const redis = getUpstashRedis();
+
+  if (!redis) {
+    return null;
+  }
+
+  try {
+    const value = await redis.rpop<string>(key);
+    return value ?? null;
+  } catch {
+    return null;
+  }
+}

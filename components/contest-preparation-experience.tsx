@@ -93,6 +93,7 @@ export function ContestPreparationExperience({
 }: ContestPreparationExperienceProps) {
   const [session, setSession] = useState(initialSession);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalSeedVersion, setModalSeedVersion] = useState(0);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -130,6 +131,7 @@ export function ContestPreparationExperience({
     }
 
     if (session && session.currentStage !== "strategy") {
+      setModalSeedVersion((current) => current + 1);
       setIsModalOpen(true);
       return;
     }
@@ -148,6 +150,7 @@ export function ContestPreparationExperience({
 
         const payload = (await response.json()) as { session: ContestIdeationSession };
         setSession(payload.session);
+        setModalSeedVersion((current) => current + 1);
         setIsModalOpen(true);
       } catch {
         setError("브레인스토밍 세션을 시작하지 못했습니다.");
@@ -264,7 +267,7 @@ export function ContestPreparationExperience({
 
       {session ? (
         <ContestIdeationModal
-          key={session.id}
+          key={`${session.id}:${modalSeedVersion}`}
           slug={contest.slug}
           contestId={contest.id}
           contestTitle={contest.title}

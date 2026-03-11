@@ -1,0 +1,19 @@
+name: Frontend Smoke Prod
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 */6 * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check home
+        run: curl -fsS https://www.ai-contest.cloud > /dev/null
+
+      - name: Check contest detail
+        run: curl -fsS https://www.ai-contest.cloud/contests/gti-ai > /dev/null
+
+      - name: Check login return flow
+        run: curl -fsS 'https://www.ai-contest.cloud/login?next=%2Fcontests%2Fgti-ai' > /dev/null

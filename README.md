@@ -63,6 +63,12 @@ Refresh the public README lineup and `data/contests.json` export from Supabase:
 node --env-file=.env.local --import tsx scripts/update-readme-lineup.ts
 ```
 
+Run queued AI generation jobs manually:
+
+```bash
+npm run ai-jobs:run -- 5
+```
+
 Add `.env.local` if you want live Supabase data:
 
 ```bash
@@ -132,10 +138,13 @@ REMOTE_AI_CACHE_STRATEGY_TTL_SECONDS=21600
 REMOTE_AI_CACHE_IDEATION_TTL_SECONDS=1800
 REMOTE_AI_CACHE_TEAM_GENERATE_TTL_SECONDS=1800
 REMOTE_AI_CACHE_TEAM_TURN_TTL_SECONDS=120
+AI_JOB_RUNNER_BASE_URL=http://127.0.0.1:3000
+AI_JOB_RUNNER_SECRET=replace-with-internal-secret
 ```
 
 When those env vars are present, [`/api/contests/[slug]/strategy-lab`](/Users/lux/Documents/ai-contest.cloud/app/api/contests/%5Bslug%5D/strategy-lab/route.ts) calls the private `Null-to-Full` API first and stores the returned strategy report + ranked sources in Supabase.
 If the private backend is unavailable, it falls back to the local in-repo pipeline. Remote calls now include request IDs, bounded retries, a small circuit breaker, and optional Upstash Redis cache/dedup when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured.
+Strategy Lab also supports async queue processing through [`/api/contests/[slug]/strategy-lab/jobs`](/Users/lux/Documents/ai-contest.cloud/app/api/contests/%5Bslug%5D/strategy-lab/jobs/route.ts), with job state stored in `public.ai_generation_jobs` and background drain handled by the app runtime or `npm run ai-jobs:run`.
 
 ## GitHub Actions
 
@@ -149,6 +158,11 @@ Set these repository secrets before enabling the workflow:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+This repo also includes:
+
+- `.github/workflows/ci.yml` for `npm ci -> lint -> build`
+- `.github/workflows/smoke-prod.yml` for lightweight production route checks
 
 Set these app env vars if you want admin actions to trigger the GitHub workflow immediately:
 

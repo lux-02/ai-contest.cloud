@@ -275,6 +275,45 @@ export interface ContestStrategyLabResult {
   status: ContestAnalysisStatus;
 }
 
+export type StrategyLabJobStatus = "queued" | "running" | "completed" | "failed";
+
+export interface StrategyLabJobSnapshot {
+  id: string;
+  status: StrategyLabJobStatus;
+  progressLabel?: string | null;
+  errorMessage?: string | null;
+  result?: ContestStrategyLabResult | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface StrategyLabJobResponse {
+  job?: StrategyLabJobSnapshot | null;
+  result?: ContestStrategyLabResult | null;
+}
+
+export type ContestIdeationJobKind = "dream_to_ideas" | "ideas_to_final" | "matrix_refresh";
+
+export interface ContestIdeationJobSnapshot {
+  id: string;
+  kind: ContestIdeationJobKind;
+  status: StrategyLabJobStatus;
+  progressLabel?: string | null;
+  errorMessage?: string | null;
+  session?: ContestIdeationSession | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface ContestIdeationJobResponse {
+  job?: ContestIdeationJobSnapshot | null;
+  session?: ContestIdeationSession | null;
+}
+
 export interface ContestDecisionMatrixWeights {
   impact: number;
   feasibility: number;
@@ -492,6 +531,26 @@ export interface TeamBootstrapResponse {
   kickoffOptions: TeamKickoffOption[];
   coachSummary?: string | null;
   justBootstrapped?: boolean;
+}
+
+export type TeamAsyncJobKind = "bootstrap" | "turn";
+
+export interface TeamAsyncJobSnapshot {
+  id: string;
+  kind: TeamAsyncJobKind;
+  status: StrategyLabJobStatus;
+  progressLabel?: string | null;
+  errorMessage?: string | null;
+  snapshot?: TeamBootstrapResponse | TeamSimulationTurnResponse | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface TeamAsyncJobResponse {
+  job?: TeamAsyncJobSnapshot | null;
+  snapshot?: TeamBootstrapResponse | TeamSimulationTurnResponse | null;
 }
 
 export interface TeamSimulationTurnResponse {

@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useState, useTransition } from "react";
 import { FaSpinner } from "react-icons/fa6";
 
-import type { ContestStrategyLabResult } from "@/types/contest";
+import type { ContestStrategyLabResult, StrategyLabJobResponse, StrategyLabJobSnapshot } from "@/types/contest";
 
 type StrategyLabPanelProps = {
   slug: string;
@@ -46,14 +46,16 @@ function stripCitationMarkers(text: string) {
 
 export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
   const [result, setResult] = useState<ContestStrategyLabResult | null>(null);
+  const [job, setJob] = useState<StrategyLabJobSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ideaInput, setIdeaInput] = useState("");
   const [lastIdea, setLastIdea] = useState<string | null>(null);
   const [isPending, startLoading] = useTransition();
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const isWorking = isPending || job?.status === "queued" || job?.status === "running";
 
   useEffect(() => {
-    if (!isPending) {
+    if (!isWorking) {
       return undefined;
     }
 
@@ -62,7 +64,58 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
     }, 1300);
 
     return () => window.clearInterval(timer);
-  }, [isPending]);
+  }, [isWorking]);
+
+  useEffect(() => {
+    if (!job?.id || (job.status !== "queued" && job.status !== "running")) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/contests/${slug}/strategy-lab/jobs/${job.id}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+          if (!cancelled) {
+            setError(body?.error ?? "브레인스토밍 상태를 불러오지 못했습니다.");
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as StrategyLabJobResponse;
+
+        if (cancelled) {
+          return;
+        }
+
+        setJob(payload.job ?? null);
+
+        if (payload.job?.status === "completed" && payload.result) {
+          startTransition(() => {
+            setResult(payload.result ?? null);
+          });
+        }
+
+        if (payload.job?.status === "failed") {
+          setError(payload.job.errorMessage ?? "브레인스토밍 생성에 실패했습니다.");
+        }
+      } catch {
+        if (!cancelled) {
+          setError("브레인스토밍 상태를 불러오지 못했습니다.");
+        }
+      }
+    }, 1400);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [job?.id, job?.status, slug]);
 
   async function handleGenerate() {
     setError(null);
@@ -71,7 +124,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
 
     startLoading(async () => {
       try {
-        const response = await fetch(`/api/contests/${slug}/strategy-lab`, {
+        const response = await fetch(`/api/contests/${slug}/strategy-lab/jobs`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -88,10 +141,17 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
           return;
         }
 
-        const data = (await response.json()) as ContestStrategyLabResult;
+        const data = (await response.json()) as StrategyLabJobResponse;
         startTransition(() => {
-          setResult(data);
           setLastIdea(trimmedIdea || null);
+          setJob(data.job ?? null);
+
+          if (data.result) {
+            setResult(data.result);
+            return;
+          }
+
+          setResult(null);
         });
       } catch {
         setError("브레인스토밍 생성에 실패했습니다.");
@@ -108,8 +168,8 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
             공고 내용, 심사 기준, 접수 항목을 바탕으로 아이디어 리스트와 전략 초안을 한 번에 생성합니다.
           </p>
         </div>
-        <button type="button" className="secondary-button" onClick={handleGenerate} disabled={isPending}>
-          {isPending ? (
+        <button type="button" className="secondary-button" onClick={handleGenerate} disabled={isWorking}>
+          {isWorking ? (
             <>
               <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
               생성 중...
@@ -147,13 +207,13 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
         </div>
       ) : null}
 
-      {isPending ? (
+      {isWorking ? (
         <div className="mt-5 space-y-4">
           <div className="loading-note">
             <span className="loading-note-spinner" aria-hidden />
             <div className="min-w-0">
               <div className="loading-note-title">브레인스토밍 생성 중</div>
-              <div className="loading-note-body">{loadingSteps[loadingStepIndex]}</div>
+              <div className="loading-note-body">{job?.progressLabel || loadingSteps[loadingStepIndex]}</div>
             </div>
           </div>
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">

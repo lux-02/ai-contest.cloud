@@ -6,7 +6,12 @@ import { FaArrowRight, FaCheck, FaChevronLeft, FaChevronRight, FaPlus, FaSpinner
 
 import { decisionMatrixPresetWeights } from "@/lib/contest-ideation";
 import { cn } from "@/lib/utils";
-import type { ContestDecisionMatrixPreset, ContestIdeationSession } from "@/types/contest";
+import type {
+  ContestDecisionMatrixPreset,
+  ContestIdeationJobResponse,
+  ContestIdeationJobSnapshot,
+  ContestIdeationSession,
+} from "@/types/contest";
 
 type VoteState = "liked" | "skipped" | "neutral";
 type UiStep = "dream" | "ideas" | "final";
@@ -302,9 +307,9 @@ export function ContestIdeationModal({
   const [showMatrixDetails, setShowMatrixDetails] = useState(initialSeed.showMatrixDetails);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ideationJob, setIdeationJob] = useState<ContestIdeationJobSnapshot | null>(null);
   const [isPending, startTransition] = useTransition();
-  const lastOpenRef = useRef(isOpen);
-  const lastSessionIdRef = useRef(session.id);
+  const toastCounterRef = useRef(0);
 
   const aiIdeaCandidates = session.ideaCandidates.filter((candidate) => candidate.source === "ai");
   const rankingCandidates = session.topRecommendations.length > 0 ? session.topRecommendations : session.matrixRows.slice(0, 3);
@@ -326,36 +331,14 @@ export function ContestIdeationModal({
   const allIdeasReviewed = aiIdeaCandidates.length > 0 && reviewedCount === aiIdeaCandidates.length;
   const showIdeaDeck = Boolean(currentIdea) && !allIdeasReviewed;
   const teamHref = `/team/${contestId}?session=${session.id}`;
-  const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isPending;
+  const isJobRunning = ideationJob?.status === "queued" || ideationJob?.status === "running";
+  const isWorking = isPending || isJobRunning;
+  const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isWorking;
   const pendingCopy = getPendingCopy(activeStep);
 
   useEffect(() => {
-    const shouldHydrate = (isOpen && !lastOpenRef.current) || session.id !== lastSessionIdRef.current;
-
-    lastOpenRef.current = isOpen;
-    lastSessionIdRef.current = session.id;
-
-    if (!shouldHydrate) {
-      return;
-    }
-
-    const nextSeed = createLocalStateSeed(session);
-    setActiveStep(nextSeed.activeStep);
-    setSelectedWhyId(nextSeed.selectedWhyId);
-    setWhyText(nextSeed.whyText);
-    setVotes(nextSeed.votes);
-    setCustomIdeas(nextSeed.customIdeas);
-    setSelectedPreset(nextSeed.selectedPreset);
-    setSelectedIdeaId(nextSeed.selectedIdeaId);
-    setCurrentIdeaIndex(nextSeed.currentIdeaIndex);
-    setIsDreamEditorOpen(nextSeed.isDreamEditorOpen);
-    setShowMatrixDetails(false);
-    setError(null);
-  }, [isOpen, session]);
-
-  useEffect(() => {
     if (!toast) {
-      return;
+      return undefined;
     }
 
     const timeout = window.setTimeout(() => {
@@ -364,6 +347,39 @@ export function ContestIdeationModal({
 
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (!ideationJob || ideationJob.status === "completed" || ideationJob.status === "failed") {
+      return undefined;
+    }
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/contests/${slug}/ideation/jobs/${ideationJob.id}`);
+        const payload = (await response.json().catch(() => null)) as (ContestIdeationJobResponse & { error?: string }) | null;
+
+        if (!response.ok) {
+          setIdeationJob(null);
+          setError(payload?.error ?? "브레인스토밍 단계를 불러오지 못했습니다.");
+          return;
+        }
+
+        if (payload?.job) {
+          setIdeationJob(payload.job);
+        }
+
+        if (payload?.session) {
+          onSessionChange(payload.session);
+          setIdeationJob(null);
+        }
+      } catch {
+        setIdeationJob(null);
+        setError("브레인스토밍 단계를 불러오지 못했습니다.");
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [ideationJob, onSessionChange, slug]);
 
   async function requestSession(path: string, body?: Record<string, unknown>) {
     const response = await fetch(`/api/contests/${slug}/ideation/${path}`, {
@@ -382,6 +398,34 @@ export function ContestIdeationModal({
     const payload = (await response.json()) as { session: ContestIdeationSession };
     onSessionChange(payload.session);
     return payload.session;
+  }
+
+  async function requestIdeationJob(path: string, body?: Record<string, unknown>) {
+    const response = await fetch(`/api/contests/${slug}/ideation/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : "{}",
+    });
+
+    const payload = (await response.json().catch(() => null)) as (ContestIdeationJobResponse & { error?: string }) | null;
+
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "브레인스토밍 생성 요청에 실패했습니다.");
+    }
+
+    if (payload?.job) {
+      setIdeationJob(payload.job);
+    }
+
+    if (payload?.session) {
+      onSessionChange(payload.session);
+      setIdeationJob(null);
+      return payload.session;
+    }
+
+    return null;
   }
 
   function addCustomIdea() {
@@ -414,8 +458,9 @@ export function ContestIdeationModal({
       return nextVotes;
     });
 
+    toastCounterRef.current += 1;
     setToast({
-      id: Date.now(),
+      id: toastCounterRef.current,
       message: voteState === "liked" ? `${title} 좋아요로 저장했어요` : `${title} 패스로 넘겼어요`,
     });
   }
@@ -450,24 +495,15 @@ export function ContestIdeationModal({
 
     startTransition(async () => {
       try {
-        const whySession = await requestSession("why", {
+        const nextSession = await requestIdeationJob("dream/jobs", {
           selectedCandidateId: selectedWhyId,
           editedText: whyText,
         });
 
-        const nextHow = whySession.howHypotheses[0];
-
-        if (!nextHow) {
-          throw new Error("다음 단계 아이디어 방향을 만들지 못했습니다.");
+        if (nextSession) {
+          setSelectedIdeaId(nextSession.selectedIdeaId ?? nextSession.ideaCandidates.find((candidate) => candidate.source === "ai")?.id ?? "");
+          setActiveStep("ideas");
         }
-
-        const whatSession = await requestSession("how", {
-          selectedCandidateId: nextHow.id,
-          editedText: nextHow.body,
-        });
-
-        setSelectedIdeaId(whatSession.selectedIdeaId ?? whatSession.ideaCandidates.find((candidate) => candidate.source === "ai")?.id ?? "");
-        setActiveStep("ideas");
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "다음 단계로 넘어가지 못했습니다.");
       }
@@ -489,22 +525,22 @@ export function ContestIdeationModal({
       try {
         const customIdeaPayload = buildCustomIdeaPayload(customIdeas);
 
-        await requestSession("what", {
+        const matrixSession = await requestIdeationJob("ideas/jobs", {
           votes: Object.entries(votes).map(([candidateId, voteState]) => ({
             candidateId,
             voteState,
           })),
           customIdeas: customIdeaPayload,
-        });
-
-        const matrixSession = await requestSession("matrix", {
+          userIdeaSeed: undefined,
           preset: selectedPreset,
           weights: decisionMatrixPresetWeights[selectedPreset],
         });
 
-        setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
-        setShowMatrixDetails(false);
-        setActiveStep("final");
+        if (matrixSession) {
+          setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
+          setShowMatrixDetails(false);
+          setActiveStep("final");
+        }
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "추천 순위를 만들지 못했습니다.");
       }
@@ -517,13 +553,15 @@ export function ContestIdeationModal({
 
     startTransition(async () => {
       try {
-        const matrixSession = await requestSession("matrix", {
+        const matrixSession = await requestIdeationJob("matrix/jobs", {
           preset,
           weights: decisionMatrixPresetWeights[preset],
         });
-        setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
-        setShowMatrixDetails(false);
-        setActiveStep("final");
+        if (matrixSession) {
+          setSelectedIdeaId(matrixSession.selectedIdeaId ?? matrixSession.topRecommendations[0]?.id ?? matrixSession.matrixRows[0]?.id ?? "");
+          setShowMatrixDetails(false);
+          setActiveStep("final");
+        }
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "추천 순위를 다시 계산하지 못했습니다.");
       }
@@ -581,11 +619,11 @@ export function ContestIdeationModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 md:px-7 md:py-6">
-          {isPending ? (
+          {isWorking ? (
             <div className="loading-note mb-5">
               <span className="loading-note-spinner" aria-hidden />
               <div className="min-w-0">
-                <div className="loading-note-title">{pendingCopy.title}</div>
+                <div className="loading-note-title">{ideationJob?.progressLabel ?? pendingCopy.title}</div>
                 <div className="loading-note-body">{pendingCopy.body}</div>
               </div>
             </div>
@@ -1110,22 +1148,22 @@ export function ContestIdeationModal({
               ) : null}
 
               {activeStep === "dream" ? (
-                <button type="button" onClick={handleDreamNext} className="primary-button sm:min-w-[140px]" disabled={isPending}>
-                  {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
+                <button type="button" onClick={handleDreamNext} className="primary-button sm:min-w-[140px]" disabled={isWorking}>
+                  {isWorking ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
                   다음으로
                 </button>
               ) : null}
 
               {activeStep === "ideas" ? (
-                <button type="button" onClick={handleIdeasNext} className="primary-button sm:min-w-[140px]" disabled={isPending}>
-                  {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
+                <button type="button" onClick={handleIdeasNext} className="primary-button sm:min-w-[140px]" disabled={isWorking}>
+                  {isWorking ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
                   순위 보기
                 </button>
               ) : null}
 
               {activeStep === "final" && session.status !== "selected" ? (
-                <button type="button" onClick={handleSelectIdea} className="primary-button sm:min-w-[140px]" disabled={isPending || !selectedIdeaId}>
-                  {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaCheck className="h-3.5 w-3.5" aria-hidden />}
+                <button type="button" onClick={handleSelectIdea} className="primary-button sm:min-w-[140px]" disabled={isWorking || !selectedIdeaId}>
+                  {isWorking ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaCheck className="h-3.5 w-3.5" aria-hidden />}
                   이걸로 확정
                 </button>
               ) : null}

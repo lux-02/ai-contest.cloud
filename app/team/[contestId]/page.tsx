@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { TeamSimulationDashboard } from "@/components/team-simulation-dashboard";
 import { getContestById } from "@/lib/queries";
-import { bootstrapContestTeamSession } from "@/lib/server/contest-team";
+import { getContestTeamHandoff } from "@/lib/server/contest-ideation";
+import { getTeamSessionSnapshot } from "@/lib/server/contest-team";
 import { requireViewerUser } from "@/lib/server/viewer-auth";
 
 type PageProps = {
@@ -57,12 +58,13 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
     );
   }
 
-  const [contest, snapshot] = await Promise.all([
+  const [contest, handoff, snapshot] = await Promise.all([
     getContestById(contestId),
-    bootstrapContestTeamSession(contestId, session, user.id),
+    getContestTeamHandoff(contestId, session, user.id),
+    getTeamSessionSnapshot(contestId, session, user.id),
   ]);
 
-  if (!contest || !snapshot) {
+  if (!contest || !handoff) {
     return (
       <main className="mx-auto max-w-4xl px-6 py-16">
         <section className="surface-card rounded-[32px] p-8 md:p-10">
@@ -81,5 +83,13 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
     );
   }
 
-  return <TeamSimulationDashboard contest={contest} viewerLabel={resolveViewerLabel(user)} initialData={snapshot} />;
+  return (
+    <TeamSimulationDashboard
+      contest={contest}
+      viewerLabel={resolveViewerLabel(user)}
+      ideationSessionId={session}
+      initialHandoff={handoff}
+      initialData={snapshot}
+    />
+  );
 }
