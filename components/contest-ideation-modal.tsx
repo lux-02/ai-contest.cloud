@@ -279,7 +279,6 @@ export function ContestIdeationModal({
   const [currentIdeaIndex, setCurrentIdeaIndex] = useState(initialSeed.currentIdeaIndex);
   const [isDreamEditorOpen, setIsDreamEditorOpen] = useState(initialSeed.isDreamEditorOpen);
   const [showMatrixDetails, setShowMatrixDetails] = useState(initialSeed.showMatrixDetails);
-  const [isIdeaReplayOpen, setIsIdeaReplayOpen] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -290,9 +289,21 @@ export function ContestIdeationModal({
   const rankingCandidates = session.topRecommendations.length > 0 ? session.topRecommendations : session.matrixRows.slice(0, 3);
   const reviewedCount = aiIdeaCandidates.filter((candidate) => (votes[candidate.id] ?? "neutral") !== "neutral").length;
   const likedCount = aiIdeaCandidates.filter((candidate) => (votes[candidate.id] ?? "neutral") === "liked").length;
+  const reviewedIdeas = aiIdeaCandidates
+    .filter((candidate) => (votes[candidate.id] ?? "neutral") !== "neutral")
+    .sort((left, right) => {
+      const leftVote = votes[left.id] ?? "neutral";
+      const rightVote = votes[right.id] ?? "neutral";
+
+      if (leftVote === rightVote) {
+        return 0;
+      }
+
+      return leftVote === "liked" ? -1 : 1;
+    });
   const currentIdea = aiIdeaCandidates[currentIdeaIndex];
   const allIdeasReviewed = aiIdeaCandidates.length > 0 && reviewedCount === aiIdeaCandidates.length;
-  const showIdeaDeck = Boolean(currentIdea) && (!allIdeasReviewed || isIdeaReplayOpen);
+  const showIdeaDeck = Boolean(currentIdea) && !allIdeasReviewed;
   const teamHref = `/team/${contestId}?session=${session.id}`;
   const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isPending;
 
@@ -317,7 +328,6 @@ export function ContestIdeationModal({
     setCurrentIdeaIndex(nextSeed.currentIdeaIndex);
     setIsDreamEditorOpen(nextSeed.isDreamEditorOpen);
     setShowMatrixDetails(false);
-    setIsIdeaReplayOpen(false);
     setError(null);
   }, [isOpen, session]);
 
@@ -378,15 +388,7 @@ export function ContestIdeationModal({
         [candidateId]: voteState,
       };
 
-      if (isIdeaReplayOpen) {
-        if (currentIdeaIndex >= aiIdeaCandidates.length - 1) {
-          setIsIdeaReplayOpen(false);
-        } else {
-          setCurrentIdeaIndex((currentIndex) => Math.min(currentIndex + 1, Math.max(aiIdeaCandidates.length - 1, 0)));
-        }
-      } else {
-        setCurrentIdeaIndex(getNextIdeaIndex(session.ideaCandidates, nextVotes, currentIdeaIndex));
-      }
+      setCurrentIdeaIndex(getNextIdeaIndex(session.ideaCandidates, nextVotes, currentIdeaIndex));
       return nextVotes;
     });
 
@@ -394,16 +396,6 @@ export function ContestIdeationModal({
       id: Date.now(),
       message: voteState === "liked" ? `${title} 좋아요로 저장했어요` : `${title} 패스로 넘겼어요`,
     });
-  }
-
-  function handleReplayIdeas() {
-    if (aiIdeaCandidates.length === 0) {
-      return;
-    }
-
-    setIsIdeaReplayOpen(true);
-    setCurrentIdeaIndex(0);
-    setError(null);
   }
 
   function handlePrevious() {
@@ -783,24 +775,60 @@ export function ContestIdeationModal({
                 </div>
               ) : null}
 
-              {allIdeasReviewed && !isIdeaReplayOpen ? (
+              {allIdeasReviewed ? (
                 <div className="rounded-[28px] border border-[rgba(54,179,126,0.24)] bg-[rgba(54,179,126,0.08)] p-6">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">검토 완료</div>
                   <h4 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
                     카드 검토를 다 끝냈어요.
                   </h4>
                   <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                    좋아요 {likedCount}개, 전체 검토 {reviewedCount}개 기준으로 이제 AI 추천 순위를 바로 볼 수 있습니다.
+                    아래에서 내가 준 선택값을 다시 보고, 마음이 바뀌면 바로 수정할 수 있어요.
                   </p>
 
-                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                    <button type="button" onClick={handleReplayIdeas} className="secondary-button">
-                      다시 선택하기
-                    </button>
-                    <button type="button" onClick={handleIdeasNext} className="primary-button" disabled={isPending}>
-                      {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
-                      검토하고 순위 보기
-                    </button>
+                  <div className="mt-5 space-y-3">
+                    {reviewedIdeas.map((idea) => {
+                      const vote = votes[idea.id] ?? "neutral";
+
+                      return (
+                        <div
+                          key={idea.id}
+                          className="flex flex-col gap-3 rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(9,11,15,0.34)] px-4 py-4 md:flex-row md:items-center md:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[var(--foreground)]">{idea.title}</div>
+                            <p className="mt-1 text-xs leading-6 text-[var(--muted)]">
+                              지금 선택: {vote === "liked" ? "좋아요" : "패스"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleVote(idea.id, idea.title, "skipped")}
+                              className={cn(
+                                "rounded-full border px-3 py-2 text-xs font-semibold transition",
+                                vote === "skipped"
+                                  ? "border-[rgba(245,241,232,0.24)] bg-[rgba(245,241,232,0.12)] text-[var(--foreground)]"
+                                  : "border-[var(--border)] bg-transparent text-[var(--muted)] hover:bg-[rgba(255,255,255,0.05)]",
+                              )}
+                            >
+                              👀 패스
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleVote(idea.id, idea.title, "liked")}
+                              className={cn(
+                                "rounded-full border px-3 py-2 text-xs font-semibold transition",
+                                vote === "liked"
+                                  ? "border-[rgba(54,179,126,0.26)] bg-[rgba(54,179,126,0.14)] text-[var(--foreground)]"
+                                  : "border-[var(--border)] bg-transparent text-[var(--muted)] hover:bg-[rgba(255,255,255,0.05)]",
+                              )}
+                            >
+                              👍 좋아요
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
