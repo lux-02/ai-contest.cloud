@@ -43,6 +43,19 @@ export function clampReadinessScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function toTimestamp(value: string | Date | null | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? 0 : value.getTime();
+  }
+
+  const timestamp = Date.parse(String(value));
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 export function resolveCurrentFocus(tasks: TeamTask[]) {
   const pending = tasks.filter((task) => task.status !== "done");
 
@@ -53,7 +66,7 @@ export function resolveCurrentFocus(tasks: TeamTask[]) {
   const pickLatest = (priority: TeamTaskPriority) =>
     pending
       .filter((task) => task.priority === priority)
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+      .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))[0];
 
   return (
     pickLatest("high")?.title ??
