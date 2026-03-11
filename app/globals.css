@@ -53,6 +53,27 @@ a {
   color: #090b0f;
 }
 
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+.keep-all {
+  word-break: keep-all;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 .surface-card {
   position: relative;
   overflow: hidden;
@@ -178,6 +199,9 @@ a {
   padding: 0.8rem 1.28rem;
   font-size: 0.9rem;
   font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
   color: #090b0f !important;
   transition:
     transform 160ms ease,
@@ -200,12 +224,16 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
   padding: 0.78rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
   color: var(--foreground);
   transition:
     border-color 160ms ease,
@@ -224,12 +252,16 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   border-radius: 999px;
   border: 1px solid rgba(184, 92, 74, 0.18);
   background: rgba(184, 92, 74, 0.08);
   padding: 0.78rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
   color: var(--danger);
   transition:
     border-color 160ms ease,
@@ -240,6 +272,47 @@ a {
 .danger-button:hover {
   border-color: rgba(184, 92, 74, 0.28);
   background: rgba(184, 92, 74, 0.12);
+}
+
+.loading-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 20px;
+  border: 1px solid rgba(245, 241, 232, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.95rem 1rem;
+  color: var(--foreground);
+}
+
+.loading-note-spinner {
+  display: inline-flex;
+  height: 1.2rem;
+  width: 1.2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(245, 241, 232, 0.18);
+  border-top-color: var(--foreground);
+  animation: spin 0.9s linear infinite;
+}
+
+.loading-note-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.loading-note-body {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--muted);
+  word-break: keep-all;
+}
+
+.chip-nowrap {
+  white-space: nowrap;
 }
 
 .insight-card {
@@ -420,6 +493,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
@@ -485,6 +559,7 @@ a {
 .team-skill-chip {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
@@ -505,6 +580,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
@@ -602,6 +678,7 @@ a {
 .team-artifact-label {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -616,6 +693,7 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -821,8 +899,12 @@ a {
   background: rgba(14, 17, 21, 0.94);
   padding: 0.85rem 1.1rem;
   color: var(--foreground);
+  line-height: 1.4;
+  text-align: center;
+  word-break: keep-all;
   transform: translateX(-50%);
   box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
+  max-width: min(92vw, 34rem);
 }
 
 .team-toast {
@@ -852,6 +934,12 @@ a {
 
   100% {
     box-shadow: 0 0 0 0 rgba(123, 160, 216, 0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -887,5 +975,12 @@ a {
 
   .team-header-focus {
     width: 100%;
+  }
+
+  .team-loading-chip,
+  .team-toast {
+    width: calc(100vw - 1.5rem);
+    justify-content: center;
+    text-align: center;
   }
 }

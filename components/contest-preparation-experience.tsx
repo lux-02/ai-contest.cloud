@@ -103,6 +103,15 @@ export function ContestPreparationExperience({
   const loginActionLabel = getViewerContinueActionLabel(nextPath);
   const returnDescription = getViewerReturnDescription(nextPath);
   const ideationStatus = buildIdeationStatus(session);
+  const openingStatus = session
+    ? {
+        title: "저장된 준비 흐름을 불러오는 중",
+        body: "마지막으로 보던 단계와 선택값을 다시 붙이고 있습니다.",
+      }
+    : {
+        title: "브레인스토밍 세션을 여는 중",
+        body: "공고 정보와 전략 리포트를 묶어서 바로 이어갈 수 있게 준비하고 있습니다.",
+      };
 
   function closeLoginModal() {
     setIsLoginModalOpen(false);
@@ -151,10 +160,10 @@ export function ContestPreparationExperience({
       <section className="mt-8 grid gap-6 xl:grid-cols-[0.84fr_1.16fr]">
         <div className="surface-card rounded-[32px] p-7 md:p-8">
           <div className="eyebrow">준비 플로우</div>
-          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
+          <h2 className="text-balance mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
             전략 읽고, 아이디어 고르고, 팀 짜기까지 여기서 바로 이어집니다.
           </h2>
-          <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+          <p className="text-pretty mt-4 text-sm leading-7 text-[var(--muted)]">
             공고를 읽고 끝나는 게 아니라, AI가 방향을 같이 잡아주고 최종 아이디어까지 골라준 뒤 팀 빌딩으로 넘깁니다.
           </p>
 
@@ -218,14 +227,24 @@ export function ContestPreparationExperience({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
-            <span className="rounded-full border border-[var(--border)] px-3 py-1.5">조회 {formatCompactNumber(contest.viewCount)}</span>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1.5">
+            <span className="chip-nowrap rounded-full border border-[var(--border)] px-3 py-1.5">조회 {formatCompactNumber(contest.viewCount)}</span>
+            <span className="chip-nowrap rounded-full border border-[var(--border)] px-3 py-1.5">
               상금 {contest.prizePoolKrw ? "크게" : "미정"}
             </span>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1.5">
+            <span className="chip-nowrap rounded-full border border-[var(--border)] px-3 py-1.5">
               {contest.teamAllowed ? "팀전 가능" : "개인전"}
             </span>
           </div>
+
+          {isPending ? (
+            <div className="loading-note mt-5">
+              <span className="loading-note-spinner" aria-hidden />
+              <div className="min-w-0">
+                <div className="loading-note-title">{openingStatus.title}</div>
+                <div className="loading-note-body">{openingStatus.body}</div>
+              </div>
+            </div>
+          ) : null}
 
           {error ? (
             <div className="mt-5 rounded-[20px] border border-[rgba(196,76,58,0.16)] bg-[rgba(196,76,58,0.08)] px-4 py-3 text-sm text-[var(--danger)]">
@@ -275,9 +294,9 @@ export function ContestPreparationExperience({
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
+              <a href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
                 {loginActionLabel}
-              </Link>
+              </a>
               <button type="button" onClick={closeLoginModal} className="secondary-button flex-1">
                 닫기
               </button>

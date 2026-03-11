@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState, useTransition } from "react";
+import { startTransition, useEffect, useState, useTransition } from "react";
 import { FaSpinner } from "react-icons/fa6";
 
 import type { ContestStrategyLabResult } from "@/types/contest";
@@ -9,6 +9,12 @@ type StrategyLabPanelProps = {
   slug: string;
   title: string;
 };
+
+const loadingSteps = [
+  "공고 본문을 읽고 있어요",
+  "심사 기준과 제출 요건을 정리하고 있어요",
+  "아이디어 후보와 전략 초안을 조합하고 있어요",
+];
 
 function formatSourceType(sourceType: string) {
   if (sourceType.startsWith("search_result:")) {
@@ -44,9 +50,23 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
   const [ideaInput, setIdeaInput] = useState("");
   const [lastIdea, setLastIdea] = useState<string | null>(null);
   const [isPending, startLoading] = useTransition();
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isPending) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setLoadingStepIndex((current) => (current + 1) % loadingSteps.length);
+    }, 1300);
+
+    return () => window.clearInterval(timer);
+  }, [isPending]);
 
   async function handleGenerate() {
     setError(null);
+    setLoadingStepIndex(0);
     const trimmedIdea = ideaInput.trim();
 
     startLoading(async () => {
@@ -84,7 +104,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">브레인스토밍 랩</div>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+          <p className="text-pretty mt-2 text-sm leading-6 text-[var(--muted)]">
             공고 내용, 심사 기준, 접수 항목을 바탕으로 아이디어 리스트와 전략 초안을 한 번에 생성합니다.
           </p>
         </div>
@@ -128,7 +148,15 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
       ) : null}
 
       {isPending ? (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="mt-5 space-y-4">
+          <div className="loading-note">
+            <span className="loading-note-spinner" aria-hidden />
+            <div className="min-w-0">
+              <div className="loading-note-title">브레인스토밍 생성 중</div>
+              <div className="loading-note-body">{loadingSteps[loadingStepIndex]}</div>
+            </div>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="rounded-[22px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
@@ -146,6 +174,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
               ))}
             </div>
           </div>
+        </div>
         </div>
       ) : null}
 
@@ -221,7 +250,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
                 ))}
               </div>
 
-              <p className="mt-6 text-xs leading-5 text-[var(--muted)]">
+              <p className="text-pretty mt-6 text-xs leading-5 text-[var(--muted)]">
                 {title} 공고와 심사 기준, 접수 항목을 바탕으로 정리한 초안입니다. 실제 제출 전에는 팀 구성, 자료 수급, 저작권 조건을 다시
                 확인하는 편이 안전합니다.
               </p>
@@ -233,7 +262,7 @@ export function StrategyLabPanel({ slug, title }: StrategyLabPanelProps) {
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">참고한 소스</div>
               <div className="mt-3 space-y-2">
                 {result.citations.map((citation) => (
-                  <div key={`${citation.title}-${citation.url ?? citation.label}`} className="text-xs leading-5 text-[var(--muted)]">
+                  <div key={`${citation.title}-${citation.url ?? citation.label}`} className="text-pretty break-words text-xs leading-5 text-[var(--muted)]">
                     <span>{citation.title}</span>
                     <span> · {formatSourceType(citation.sourceType)}</span>
                     {citation.searchQuery ? <span> · 검색어 {citation.searchQuery}</span> : null}

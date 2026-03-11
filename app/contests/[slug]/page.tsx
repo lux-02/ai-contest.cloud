@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { BadgePill } from "@/components/badge-pill";
 import { ContestHeroActions } from "@/components/contest-hero-actions";
@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDeadlineLabel,
   formatDifficulty,
+  formatLanguage,
   formatOrganizerType,
   formatMode,
 } from "@/lib/utils";
@@ -30,7 +31,7 @@ type PageProps = {
   }>;
 };
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function MetaRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 border-b border-[var(--border)] py-4 last:border-none last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <dt className="text-sm font-medium text-[var(--muted)]">{label}</dt>
@@ -47,20 +48,45 @@ function formatOrganizerTrust(contest: Contest) {
   return contest.organizerType ? formatOrganizerType(contest.organizerType) : "주최 성격 미정";
 }
 
+function normalizeDisplayText(text?: string | null) {
+  if (!text) {
+    return "";
+  }
+
+  return text
+    .replace(/\r/g, "\n")
+    .replace(/([^\n])•\s*/g, "$1\n• ")
+    .replace(/^•\s*/g, "• ")
+    .replace(/\s+\*\s*/g, "\n* ")
+    .replace(/(\d+\.)\s*/g, "\n$1 ")
+    .replace(/(\d+\))\s*/g, "\n$1 ")
+    .replace(/([.!?])\s*-\s*/g, "$1\n- ")
+    .replace(/([^\n])(구글폼 링크:)/g, "$1\n$2")
+    .replace(/([^\n])(https?:\/\/)/g, "$1\n$2")
+    .replace(/(\[[^\]]+\])/g, "\n$1\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 function buildContentBlocks(text?: string | null) {
   if (!text) {
     return [];
   }
 
-  return text
-    .replace(/•\s*/g, "\n• ")
-    .replace(/(\d+\))\s+/g, "\n$1 ")
-    .replace(/(\d+\.)\s+/g, "\n$1 ")
-    .replace(/(\[[^\]]+\])/g, "\n$1\n")
-    .replace(/\n{3,}/g, "\n\n")
+  return normalizeDisplayText(text)
     .split(/\n+/)
     .map((line) => line.replace(/\s{2,}/g, " ").trim())
     .filter(Boolean);
+}
+
+function buildCompactSummary(text?: string | null, maxItems = 2) {
+  const blocks = buildContentBlocks(text);
+  return blocks
+    .map((block) => block.replace(/^[-•]\s*/, "").replace(/\s+\*.*$/, "").replace(/\s+\/.*$/, "").trim())
+    .filter(Boolean)
+    .slice(0, maxItems)
+    .join(" / ");
 }
 
 function ContentBlocks({ text, emptyText = "내용 미정" }: { text?: string | null; emptyText?: string }) {
@@ -208,9 +234,9 @@ export default async function ContestDetailPage({ params }: PageProps) {
               </p>
             </div>
             <div className="mt-5">
-              <Link href={`/contests/${contestMetrics.slug}/apply`} className="primary-button w-full">
+              <a href={`/contests/${contestMetrics.slug}/apply`} className="primary-button w-full">
                 공모전 신청하기
-              </Link>
+              </a>
             </div>
           </aside>
 
@@ -224,8 +250,8 @@ export default async function ContestDetailPage({ params }: PageProps) {
               <MetaRow label="상금" value={formatCurrency(contestMetrics.prizePoolKrw)} />
               <MetaRow label="주최 성격" value={formatOrganizerTrust(contestMetrics)} />
               <MetaRow label="팀 구성" value={formatTeamValue(contestMetrics)} />
-              <MetaRow label="언어" value={contestMetrics.language} />
-              <MetaRow label="응모 자격" value={contestMetrics.eligibilityText || "원문 공고 확인"} />
+              <MetaRow label="언어" value={formatLanguage(contestMetrics.language)} />
+              <MetaRow label="응모 자격" value={buildCompactSummary(contestMetrics.eligibilityText) || "원문 공고 확인"} />
             </dl>
           </aside>
 
@@ -270,7 +296,7 @@ export default async function ContestDetailPage({ params }: PageProps) {
               {contestMetrics.submissionItems?.length ? (
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--foreground)]">
                   {contestMetrics.submissionItems.map((item) => (
-                    <li key={item}>• {item}</li>
+                    <li key={item}>• {item.replace(/^[-•]\s*/, "")}</li>
                   ))}
                 </ul>
               ) : (

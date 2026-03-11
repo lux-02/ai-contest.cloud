@@ -65,6 +65,27 @@ const presetMeta: Array<{ id: ContestDecisionMatrixPreset; label: string; hint: 
   { id: "deadline", label: "마감 우선", hint: "빨리 완성" },
 ];
 
+function getPendingCopy(activeStep: UiStep) {
+  if (activeStep === "dream") {
+    return {
+      title: "아이디어 후보를 준비하는 중",
+      body: "고른 방향을 심사 기준에 맞춰 정리하고 다음 카드들을 만들고 있어요.",
+    };
+  }
+
+  if (activeStep === "ideas") {
+    return {
+      title: "추천 순위를 계산하는 중",
+      body: "좋아요와 패스, 직접 추가한 아이디어를 기준으로 가장 유리한 후보를 정리하고 있어요.",
+    };
+  }
+
+  return {
+    title: "최종 아이디어를 확정하는 중",
+    body: "선택한 방향을 팀 빌딩 화면으로 넘길 수 있게 마지막 상태를 저장하고 있어요.",
+  };
+}
+
 function mapStageToUiStep(session: ContestIdeationSession): UiStep {
   if (session.currentStage === "what") {
     return "ideas";
@@ -123,7 +144,7 @@ function ProgressPills({ activeStep }: { activeStep: UiStep }) {
   const activeIndex = uiSteps.findIndex((step) => step.id === activeStep);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="scrollbar-hidden flex gap-2 overflow-x-auto pb-1">
       {uiSteps.map((step, index) => {
         const isActive = step.id === activeStep;
         const isDone = index < activeIndex;
@@ -132,7 +153,7 @@ function ProgressPills({ activeStep }: { activeStep: UiStep }) {
           <div
             key={step.id}
             className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition",
+              "chip-nowrap flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition",
               isActive
                 ? "border-[rgba(245,241,232,0.28)] bg-[rgba(245,241,232,0.12)] text-[var(--foreground)]"
                 : isDone
@@ -306,6 +327,7 @@ export function ContestIdeationModal({
   const showIdeaDeck = Boolean(currentIdea) && !allIdeasReviewed;
   const teamHref = `/team/${contestId}?session=${session.id}`;
   const canGoBack = (activeStep === "ideas" || (activeStep === "final" && session.status !== "selected")) && !isPending;
+  const pendingCopy = getPendingCopy(activeStep);
 
   useEffect(() => {
     const shouldHydrate = (isOpen && !lastOpenRef.current) || session.id !== lastSessionIdRef.current;
@@ -540,10 +562,10 @@ export function ContestIdeationModal({
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="eyebrow">AI 코치</div>
-              <h2 id="ideation-modal-title" className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
+              <h2 id="ideation-modal-title" className="text-balance mt-2 text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
                 {contestTitle}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+              <p className="text-pretty mt-2 text-sm leading-6 text-[var(--muted)]">
                 3단계만 따라가면, 이 공모전에 맞는 아이디어를 빠르게 고를 수 있어요.
               </p>
             </div>
@@ -559,14 +581,24 @@ export function ContestIdeationModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 md:px-7 md:py-6">
+          {isPending ? (
+            <div className="loading-note mb-5">
+              <span className="loading-note-spinner" aria-hidden />
+              <div className="min-w-0">
+                <div className="loading-note-title">{pendingCopy.title}</div>
+                <div className="loading-note-body">{pendingCopy.body}</div>
+              </div>
+            </div>
+          ) : null}
+
           {activeStep === "dream" ? (
             <div className="space-y-6">
               <div className="max-w-3xl">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">1/3 꿈꾸기</div>
-                <h3 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
+                <h3 className="text-balance mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
                   이 공모전으로 제일 이루고 싶은 건 뭐야?
                 </h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+                <p className="text-pretty mt-3 text-sm leading-7 text-[var(--muted)]">
                   AI가 먼저 방향을 몇 개 골라놨어요. 마음에 드는 걸 하나 고르면, 다음 단계 아이디어는 우리가 바로 뽑아줄게요.
                 </p>
               </div>
@@ -649,10 +681,10 @@ export function ContestIdeationModal({
             <div className="space-y-6">
               <div className="max-w-3xl">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">2/3 아이디어 뽑기</div>
-                <h3 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
+                <h3 className="text-balance mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
                   이런 아이디어 어때?
                 </h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+                <p className="text-pretty mt-3 text-sm leading-7 text-[var(--muted)]">
                   카드가 하나씩 나와요. 괜찮으면 좋아요, 아니면 패스를 눌러 주세요. AI가 그걸 바탕으로 바로 순위를 매길게요.
                 </p>
               </div>
@@ -769,8 +801,8 @@ export function ContestIdeationModal({
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
-                    <span className="rounded-full border border-[var(--border)] px-3 py-1.5">검토 {reviewedCount}/{aiIdeaCandidates.length}</span>
-                    <span className="rounded-full border border-[var(--border)] px-3 py-1.5">좋아요 {likedCount}</span>
+                    <span className="chip-nowrap rounded-full border border-[var(--border)] px-3 py-1.5">검토 {reviewedCount}/{aiIdeaCandidates.length}</span>
+                    <span className="chip-nowrap rounded-full border border-[var(--border)] px-3 py-1.5">좋아요 {likedCount}</span>
                   </div>
                 </div>
               ) : null}
@@ -905,7 +937,7 @@ export function ContestIdeationModal({
                 <div className="space-y-6">
                   <div className="max-w-3xl">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">3/3 완료</div>
-                    <h3 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
+                    <h3 className="text-balance mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
                       좋아, 이제 방향 잡혔어. 팀만 붙이면 돼.
                     </h3>
                     <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
@@ -945,7 +977,7 @@ export function ContestIdeationModal({
                 <div className="space-y-6">
                   <div className="max-w-3xl">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">3/3 최종 선택</div>
-                    <h3 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
+                    <h3 className="text-balance mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)]">
                       이걸로 가자!
                     </h3>
                     <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
@@ -1069,37 +1101,37 @@ export function ContestIdeationModal({
               지금은 <span className="font-semibold text-[var(--foreground)]">{uiSteps.find((step) => step.id === activeStep)?.label}</span> 단계예요.
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               {canGoBack ? (
-                <button type="button" onClick={handlePrevious} className="secondary-button">
+                <button type="button" onClick={handlePrevious} className="secondary-button sm:min-w-[120px]">
                   <FaChevronLeft className="h-3.5 w-3.5" aria-hidden />
                   이전
                 </button>
               ) : null}
 
               {activeStep === "dream" ? (
-                <button type="button" onClick={handleDreamNext} className="primary-button" disabled={isPending}>
+                <button type="button" onClick={handleDreamNext} className="primary-button sm:min-w-[140px]" disabled={isPending}>
                   {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
                   다음으로
                 </button>
               ) : null}
 
               {activeStep === "ideas" ? (
-                <button type="button" onClick={handleIdeasNext} className="primary-button" disabled={isPending}>
+                <button type="button" onClick={handleIdeasNext} className="primary-button sm:min-w-[140px]" disabled={isPending}>
                   {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaArrowRight className="h-3.5 w-3.5" aria-hidden />}
                   순위 보기
                 </button>
               ) : null}
 
               {activeStep === "final" && session.status !== "selected" ? (
-                <button type="button" onClick={handleSelectIdea} className="primary-button" disabled={isPending || !selectedIdeaId}>
+                <button type="button" onClick={handleSelectIdea} className="primary-button sm:min-w-[140px]" disabled={isPending || !selectedIdeaId}>
                   {isPending ? <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FaCheck className="h-3.5 w-3.5" aria-hidden />}
                   이걸로 확정
                 </button>
               ) : null}
 
               {activeStep === "final" && session.status === "selected" ? (
-                <Link href={teamHref} className="primary-button">
+                <Link href={teamHref} className="primary-button sm:min-w-[160px]">
                   <FaUsers className="h-3.5 w-3.5" aria-hidden />
                   팀 빌딩으로 이동
                 </Link>

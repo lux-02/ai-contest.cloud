@@ -31,6 +31,8 @@ export function ContestPoster({ contest }: ContestPosterProps) {
           alt={`${contest.title} 공고 이미지`}
           fill
           unoptimized
+          priority
+          loading="eager"
           sizes="(max-width: 1024px) 100vw, 420px"
           className="object-cover"
         />

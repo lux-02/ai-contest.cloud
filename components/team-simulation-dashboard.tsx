@@ -11,6 +11,7 @@ import {
   FaCommentDots,
   FaLayerGroup,
   FaPaperPlane,
+  FaSpinner,
   FaUserPlus,
   FaUsers,
   FaWandMagicSparkles,
@@ -691,16 +692,16 @@ export function TeamSimulationDashboard({
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {member.isUserClaimed ? (
                 <span className="team-status-pill is-ready">내가 맡음</span>
               ) : (
                 <>
-                  <button type="button" onClick={() => handleRegenerateSingle(member.id)} className="secondary-button flex-1">
+                  <button type="button" onClick={() => handleRegenerateSingle(member.id)} className="secondary-button min-w-0">
                     <FaArrowRotateRight className="h-3.5 w-3.5" aria-hidden />
                     한 명 바꿔줘
                   </button>
-                  <button type="button" onClick={() => handleClaimRole(member.id)} className="secondary-button flex-1">
+                  <button type="button" onClick={() => handleClaimRole(member.id)} className="secondary-button min-w-0">
                     <FaUserPlus className="h-3.5 w-3.5" aria-hidden />
                     내가 할게
                   </button>
@@ -821,19 +822,19 @@ export function TeamSimulationDashboard({
             </Link>
             <div className="min-w-0">
               <div className="eyebrow">Team Simulation</div>
-              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
+              <h1 className="text-balance mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
                 {contest.title}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
-                <span className="team-head-pill">{contest.organizer}</span>
-                <span className="team-head-pill">{daysUntilDeadline === null ? "D-day 미정" : `D-${daysUntilDeadline}`}</span>
-                <span className="team-head-pill">{formatRelativeDate(contest.deadline)}</span>
+                <span className="team-head-pill chip-nowrap">{contest.organizer}</span>
+                <span className="team-head-pill chip-nowrap">{daysUntilDeadline === null ? "D-day 미정" : `D-${daysUntilDeadline}`}</span>
+                <span className="team-head-pill chip-nowrap">{formatRelativeDate(contest.deadline)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-start gap-4">
-            <div className="text-right">
+          <div className="flex flex-col items-start gap-4 md:flex-row md:items-start">
+            <div className="text-left md:text-right">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">우승 준비도</div>
               <div className={cn("mt-2 text-3xl font-semibold", getReadinessTone(teamSession.readinessScore))}>{teamSession.readinessScore}%</div>
               <div className="mt-2 text-sm leading-6 text-[var(--muted)]">{teamSession.completionSummary}</div>
@@ -932,7 +933,7 @@ export function TeamSimulationDashboard({
 
       {isPending ? (
         <div className="team-loading-chip">
-          <FaChevronRight className="h-3.5 w-3.5 animate-pulse" aria-hidden />
+          <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
           {pendingActivity?.steps[pendingActivity.index] ?? "팀이 다음 액션을 정리 중입니다."}
         </div>
       ) : null}

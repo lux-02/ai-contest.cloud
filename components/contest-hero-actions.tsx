@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import {
   FaArrowUpRightFromSquare,
@@ -159,9 +158,9 @@ export function ContestHeroActions({
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
+              <a href={`/auth/google?next=${encodeURIComponent(nextPath)}`} className="primary-button flex-1">
                 {loginActionLabel}
-              </Link>
+              </a>
               <button type="button" onClick={closeLoginModal} className="secondary-button flex-1">
                 닫기
               </button>

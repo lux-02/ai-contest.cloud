@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { startTransition, useActionState, useDeferredValue, useRef, useState } from "react";
+import { FaSpinner } from "react-icons/fa6";
 
 import {
   contestCategoryOptions,
@@ -1162,7 +1163,16 @@ export function ContestForm({
                 disabled={!analysisReady || extractingWithAi}
                 className="primary-button disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {!analysisReady ? "OpenAI 설정 필요" : extractingWithAi ? "AI 추출 중..." : "AI로 전체 필드 채우기"}
+                {extractingWithAi ? (
+                  <>
+                    <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    AI 추출 중...
+                  </>
+                ) : !analysisReady ? (
+                  "OpenAI 설정 필요"
+                ) : (
+                  "AI로 전체 필드 채우기"
+                )}
               </button>
               <button type="button" onClick={handleQuickFill} className="secondary-button">
                 기본 규칙으로 빠르게 채우기
@@ -1175,6 +1185,15 @@ export function ContestForm({
             {quickFillStatus ? (
               <div className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]">
                 {quickFillStatus}
+              </div>
+            ) : null}
+            {extractingWithAi ? (
+              <div className="loading-note">
+                <span className="loading-note-spinner" aria-hidden />
+                <div className="min-w-0">
+                  <div className="loading-note-title">공고 구조를 분석하는 중</div>
+                  <div className="loading-note-body">제목, 일정, 신청 링크, 심사 기준, 접수 항목을 순서대로 정리하고 있습니다.</div>
+                </div>
               </div>
             ) : null}
           </div>
@@ -1469,12 +1488,28 @@ export function ContestForm({
                   />
                 </label>
                 <div className="rounded-[18px] border border-[var(--border)] bg-[var(--background-strong)] px-4 py-3 text-sm text-[var(--muted)]">
-                  {uploadingPoster ? "업로드 중..." : "최대 5MB · PNG/JPG/WebP/GIF/SVG/AVIF"}
+                  {uploadingPoster ? (
+                    <span className="inline-flex items-center gap-2">
+                      <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      업로드 중...
+                    </span>
+                  ) : (
+                    "최대 5MB · PNG/JPG/WebP/GIF/SVG/AVIF"
+                  )}
                 </div>
               </div>
               {uploadMessage ? (
                 <div className="mt-3 rounded-[18px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm text-[var(--foreground)]">
                   {uploadMessage}
+                </div>
+              ) : null}
+              {uploadingPoster ? (
+                <div className="loading-note mt-3">
+                  <span className="loading-note-spinner" aria-hidden />
+                  <div className="min-w-0">
+                    <div className="loading-note-title">포스터 이미지를 올리는 중</div>
+                    <div className="loading-note-body">업로드가 끝나면 이미지 URL과 미리보기가 바로 갱신됩니다.</div>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1548,7 +1583,16 @@ export function ContestForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={isPending} className="primary-button disabled:opacity-50">
-          {isPending ? "저장 중..." : isEdit ? "대회 정보 저장하기" : "대회 저장하기"}
+          {isPending ? (
+            <>
+              <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              저장 중...
+            </>
+          ) : isEdit ? (
+            "대회 정보 저장하기"
+          ) : (
+            "대회 저장하기"
+          )}
         </button>
         <p className="text-sm text-[var(--muted)]">
           {isEdit
@@ -1556,6 +1600,15 @@ export function ContestForm({
             : "저장과 동시에 badge refresh, analysis row 생성까지 처리합니다."}
         </p>
       </div>
+      {isPending ? (
+        <div className="loading-note">
+          <span className="loading-note-spinner" aria-hidden />
+          <div className="min-w-0">
+            <div className="loading-note-title">대회 데이터를 저장하는 중</div>
+            <div className="loading-note-body">DB 저장, badge refresh, 분석 row 생성, README/JSON 갱신 트리거를 순서대로 처리하고 있습니다.</div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

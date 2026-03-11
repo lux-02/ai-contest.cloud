@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { FaSpinner } from "react-icons/fa6";
 
 export type AdminLoginState = {
   status: "idle" | "error";
@@ -61,8 +62,25 @@ export function AdminLoginForm({ action, nextPath, defaultEmail }: AdminLoginFor
       ) : null}
 
       <button type="submit" disabled={isPending} className="primary-button w-full disabled:opacity-50">
-        {isPending ? "확인 중..." : "관리자 로그인"}
+        {isPending ? (
+          <>
+            <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            확인 중...
+          </>
+        ) : (
+          "관리자 로그인"
+        )}
       </button>
+
+      {isPending ? (
+        <div className="loading-note">
+          <span className="loading-note-spinner" aria-hidden />
+          <div className="min-w-0">
+            <div className="loading-note-title">관리자 세션을 확인하는 중</div>
+            <div className="loading-note-body">로그인 정보와 권한을 검증하고 있습니다.</div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

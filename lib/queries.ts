@@ -113,6 +113,52 @@ function parseJsonArray(value: unknown) {
   return [];
 }
 
+function normalizeDisplayText(value: string) {
+  return value
+    .replace(/\r/g, "\n")
+    .replace(/([^\n])•\s*/g, "$1\n• ")
+    .replace(/^•\s*/g, "• ")
+    .replace(/\s+\*\s*/g, "\n* ")
+    .replace(/(\d+\.)\s*/g, "\n$1 ")
+    .replace(/(\d+\))\s*/g, "\n$1 ")
+    .replace(/([.!?])\s*-\s*/g, "$1\n- ")
+    .replace(/([^\n])(구글폼 링크:)/g, "$1\n$2")
+    .replace(/([^\n])(https?:\/\/)/g, "$1\n$2")
+    .replace(/(\[[^\]]+\])/g, "\n$1\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function normalizeLineArray(values: string[] | null | undefined) {
+  if (!values?.length) {
+    return [];
+  }
+
+  return values
+    .flatMap((value) =>
+      normalizeDisplayText(value)
+        .split(/\n+/)
+        .map((item) => item.replace(/^[-•]\s*/, "").trim())
+        .filter(Boolean),
+    )
+    .slice(0, 12);
+}
+
+function normalizeJudgingLabel(label: string) {
+  return normalizeDisplayText(label)
+    .split(/\n+/)[0]
+    ?.replace(/^[-•]\s*/, "")
+    .replace(/\s*등\s*\d+가지.*$/, "")
+    .replace(/\s+\d+%$/, "")
+    .trim();
+}
+
+function parseWeightFromLabel(label: string) {
+  const match = label.match(/(\d{1,3})\s*%/);
+  return match ? Number(match[1]) : null;
+}
+
 function normalizeJudgingCriteriaValue(value: unknown): ContestJudgingCriterion[] {
   return parseJsonArray(value)
     .flatMap((item) => {
@@ -130,11 +176,17 @@ function normalizeJudgingCriteriaValue(value: unknown): ContestJudgingCriterion[
         return [];
       }
 
+      const normalizedLabel = normalizeJudgingLabel(row.label);
+
+      if (!normalizedLabel) {
+        return [];
+      }
+
       return [
         {
-          label: row.label.trim(),
-          weight: typeof row.weight === "number" ? row.weight : null,
-          description: typeof row.description === "string" ? row.description.trim() || null : null,
+          label: normalizedLabel,
+          weight: typeof row.weight === "number" ? row.weight : parseWeightFromLabel(row.label),
+          description: typeof row.description === "string" ? normalizeDisplayText(row.description) || null : null,
         } satisfies ContestJudgingCriterion,
       ];
     })
@@ -173,13 +225,21 @@ function mapContestRow(row: ContestRow): Contest {
   const analysis = normalizeAnalysis(row);
   const judgingCriteria = normalizeJudgingCriteriaValue(row.judging_criteria);
   const stageSchedule = normalizeStageScheduleValue(row.stage_schedule);
+  const normalizedSubmissionItems = normalizeLineArray(row.submission_items);
+  const derivedOrganizerType = deriveOrganizerType(
+    row.organizer,
+    row.title,
+    row.short_description ?? row.description,
+    row.url,
+    row.source_url ?? undefined,
+  );
 
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     organizer: row.organizer,
-    organizerType: row.organizer_type ?? deriveOrganizerType(row.organizer),
+    organizerType: row.organizer_type ?? derivedOrganizerType,
     shortDescription: row.short_description ?? row.description.slice(0, 140),
     description: row.description,
     url: row.url,
@@ -191,7 +251,7 @@ function mapContestRow(row: ContestRow): Contest {
     eventDate: row.event_date ?? undefined,
     participationMode: row.participation_mode,
     location: row.location ?? undefined,
-    eligibilityText: row.eligibility_text ?? "",
+    eligibilityText: row.eligibility_text ? normalizeDisplayText(row.eligibility_text) : "",
     eligibilitySegments: row.eligibility_segments ?? [],
     difficulty: row.difficulty,
     teamAllowed: row.team_allowed,
@@ -200,11 +260,11 @@ function mapContestRow(row: ContestRow): Contest {
     language: row.language,
     globalParticipation: row.global_participation,
     prizePoolKrw: row.prize_pool_krw ?? undefined,
-    prizeSummary: row.prize_summary ?? undefined,
-    submissionFormat: row.submission_format ?? undefined,
+    prizeSummary: row.prize_summary ? normalizeDisplayText(row.prize_summary) : undefined,
+    submissionFormat: row.submission_format ? normalizeDisplayText(row.submission_format) : undefined,
     submissionItems:
-      row.submission_items && row.submission_items.length > 0
-        ? row.submission_items
+      normalizedSubmissionItems.length > 0
+        ? normalizedSubmissionItems
         : buildFallbackSubmissionItems(row.submission_format),
     judgingCriteria:
       judgingCriteria.length > 0 ? judgingCriteria : buildFallbackJudgingCriteria(analysis.judgingFocus),
@@ -212,8 +272,8 @@ function mapContestRow(row: ContestRow): Contest {
       stageSchedule.length > 0
         ? stageSchedule
         : buildFallbackStageSchedule(row.start_date, row.deadline, row.event_date),
-    pastWinners: row.past_winners ?? undefined,
-    toolsAllowed: row.tools_allowed ?? [],
+    pastWinners: row.past_winners ? normalizeDisplayText(row.past_winners) : undefined,
+    toolsAllowed: normalizeLineArray(row.tools_allowed),
     datasetProvided: row.dataset_provided,
     datasetSummary: row.dataset_summary ?? undefined,
     aiCategories: row.ai_categories ?? [],
@@ -234,30 +294,42 @@ function compactSearchText(value: string) {
   return normalizeSearchText(value).replace(/\s+/g, "");
 }
 
-function deriveOrganizerType(organizer: string): ContestOrganizerType {
-  const normalized = organizer.toLowerCase();
+function deriveOrganizerType(
+  organizer: string,
+  ...contextSignals: Array<string | undefined | null>
+): ContestOrganizerType {
+  const organizerNormalized = organizer.toLowerCase();
+  const contextNormalized = contextSignals
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const combinedNormalized = `${organizerNormalized} ${contextNormalized}`.trim();
 
   if (
     /정부|공공|부처|청|시청|구청|도청|한국|kotra|진흥원|공사|산업통상|과학기술|ministry|government|agency/.test(
-      normalized,
+      organizerNormalized,
     )
   ) {
     return "government";
   }
 
-  if (/재단|foundation/.test(normalized)) {
+  if (/재단|foundation/.test(organizerNormalized)) {
     return "foundation";
   }
 
-  if (/대학교|대학|university|college/.test(normalized)) {
+  if (/대학교|university|college/.test(organizerNormalized)) {
     return "university";
   }
 
-  if (/openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|microsoft|amazon|meta/.test(normalized)) {
+  if (
+    /openai|google|naver|kakao|samsung|lg|hyundai|volkswagen|폭스바겐|microsoft|amazon|meta|apple|tesla|bmw|benz|mercedes|toyota/.test(
+      combinedNormalized,
+    )
+  ) {
     return "enterprise";
   }
 
-  if (/startup|works|labs|lab|studio/.test(normalized)) {
+  if (/startup|works|labs|lab|studio|커뮤니케이션|communications|creative/.test(organizerNormalized)) {
     return "startup";
   }
 
@@ -277,9 +349,9 @@ function buildFallbackSubmissionItems(submissionFormat?: string | null) {
     return [];
   }
 
-  return submissionFormat
-    .split(/,|\n|·/)
-    .map((item) => item.trim())
+  return normalizeDisplayText(submissionFormat)
+    .split(/\n|·/)
+    .map((item) => item.replace(/^[-•]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 6);
 }
@@ -291,7 +363,7 @@ function buildFallbackJudgingCriteria(judgingFocus?: string | null) {
 
   const items = judgingFocus
     .split(/,|\n/)
-    .map((item) => item.trim())
+    .map((item) => normalizeJudgingLabel(item))
     .filter(Boolean)
     .slice(0, 5);
 
@@ -303,7 +375,7 @@ function buildFallbackJudgingCriteria(judgingFocus?: string | null) {
 
   return items.map((item, index) => ({
     label: item,
-    weight: index === items.length - 1 ? 100 - evenWeight * index : evenWeight,
+    weight: parseWeightFromLabel(item) ?? (index === items.length - 1 ? 100 - evenWeight * index : evenWeight),
     description: null,
   }));
 }

@@ -43,6 +43,24 @@ export function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
+export function formatLanguage(value?: string) {
+  if (!value) {
+    return "미정";
+  }
+
+  const normalized = value.toLowerCase();
+
+  if (normalized === "korean" || normalized === "ko" || normalized === "ko-kr") {
+    return "한국어";
+  }
+
+  if (normalized === "english" || normalized === "en" || normalized === "en-us") {
+    return "영어";
+  }
+
+  return value;
+}
+
 export function getDaysUntil(value?: string) {
   if (!value) {
     return null;
