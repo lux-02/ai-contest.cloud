@@ -4,7 +4,8 @@
   "sections": {
     "deadlineUrgent": [
       "openai-safety-sprint",
-      "multimodal-studio-jam"
+      "multimodal-studio-jam",
+      "campus-rag-league"
     ],
     "highPrize": [
       "openai-safety-sprint",
@@ -157,9 +158,10 @@
       ],
       "shortDescription": "학생 팀이 빠르게 RAG 기반 MVP를 만들 수 있도록 설계된 대학생 중심 리그.",
       "featuredSections": [
+        "deadlineUrgent",
         "studentFriendly"
       ],
-      "featuredReason": "대학생 지원 적합도가 높아 학생 추천 섹션에 포함된 대회"
+      "featuredReason": "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회"
     },
     {
       "id": "5c934549-ff16-450a-ae56-0d65f93a2374",
