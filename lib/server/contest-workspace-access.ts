@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { getContestById } from "@/lib/queries";
+import { getContestById, getContests } from "@/lib/queries";
 import { getContestIdeationSession } from "@/lib/server/contest-ideation";
 import { getSupabaseServiceClient } from "@/lib/server/supabase";
 import type {
@@ -10,8 +10,10 @@ import type {
   ContestWorkspaceAccess,
   ContestWorkspaceAccessRole,
   ContestWorkspaceCollaborator,
+  ContestWorkspaceInviteInboxEntry,
   ContestWorkspaceInvite,
   ContestWorkspaceInviteStatus,
+  ContestWorkspaceMembershipSummary,
 } from "@/types/contest";
 
 type ContestWorkspaceMemberRow = {
@@ -213,6 +215,104 @@ export async function listContestWorkspaceCollaborators(input: {
   const emails = await Promise.all(rows.map((row) => getMemberEmail(row.member_user_id)));
 
   return rows.map((row, index) => normalizeCollaborator(row, emails[index] ?? null));
+}
+
+export async function listContestWorkspaceMembershipsForViewer(viewerUserId: string) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return [] satisfies ContestWorkspaceMembershipSummary[];
+  }
+
+  const { data, error } = await supabase
+    .from("contest_workspace_members")
+    .select("contest_id, ideation_session_id, owner_user_id, role, updated_at")
+    .eq("member_user_id", viewerUserId)
+    .order("updated_at", { ascending: false });
+
+  if (error || !data) {
+    return [] satisfies ContestWorkspaceMembershipSummary[];
+  }
+
+  const contests = await getContests();
+  const contestMap = new Map(contests.map((contest) => [contest.id, contest]));
+
+  return (data as Array<{
+    contest_id: string;
+    ideation_session_id: string;
+    owner_user_id: string;
+    role: ContestWorkspaceAccessRole;
+    updated_at: string;
+  }>)
+    .map((row) => {
+      const contest = contestMap.get(row.contest_id);
+
+      if (!contest) {
+        return null;
+      }
+
+      return {
+        contest,
+        ideationSessionId: row.ideation_session_id,
+        ownerUserId: row.owner_user_id,
+        role: row.role,
+        updatedAt: row.updated_at,
+      } satisfies ContestWorkspaceMembershipSummary;
+    })
+    .flatMap((entry) => (entry ? [entry] : []));
+}
+
+export async function listPendingContestWorkspaceInvitesForViewer(viewerEmail: string) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return [] satisfies ContestWorkspaceInviteInboxEntry[];
+  }
+
+  const normalizedEmail = normalizeEmail(viewerEmail);
+
+  if (!normalizedEmail) {
+    return [] satisfies ContestWorkspaceInviteInboxEntry[];
+  }
+
+  const { data, error } = await supabase
+    .from("contest_workspace_invites")
+    .select(
+      "id, contest_id, ideation_session_id, owner_user_id, invitee_email, role, invite_token, status, accepted_by_user_id, accepted_at, created_at, updated_at",
+    )
+    .eq("invitee_email", normalizedEmail)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    return [] satisfies ContestWorkspaceInviteInboxEntry[];
+  }
+
+  const contests = await getContests();
+  const contestMap = new Map(contests.map((contest) => [contest.id, contest]));
+
+  return (data as ContestWorkspaceInviteRow[])
+    .map((row) => {
+      const contest = contestMap.get(row.contest_id);
+
+      if (!contest) {
+        return null;
+      }
+
+      return {
+        contest,
+        inviteId: row.id,
+        ideationSessionId: row.ideation_session_id,
+        ownerUserId: row.owner_user_id,
+        inviteToken: row.invite_token,
+        inviteUrl: buildInviteUrl(row.invite_token),
+        inviteeEmail: row.invitee_email,
+        role: row.role === "reviewer" ? "reviewer" : "member",
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      } satisfies ContestWorkspaceInviteInboxEntry;
+    })
+    .flatMap((entry) => (entry ? [entry] : []));
 }
 
 export async function removeContestWorkspaceCollaborator(input: {

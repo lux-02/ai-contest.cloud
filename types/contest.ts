@@ -645,6 +645,27 @@ export interface TeamTask {
   updatedAt: string;
 }
 
+export interface ContestWorkspaceMembershipSummary {
+  contest: Contest;
+  ideationSessionId: string;
+  ownerUserId: string;
+  role: ContestWorkspaceAccessRole;
+  updatedAt: string;
+}
+
+export interface ContestWorkspaceInviteInboxEntry {
+  contest: Contest;
+  inviteId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+  inviteToken: string;
+  inviteUrl: string;
+  inviteeEmail: string;
+  role: Exclude<ContestWorkspaceAccessRole, "owner">;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TeamArtifact {
   id: string;
   artifactType: TeamArtifactType;
