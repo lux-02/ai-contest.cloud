@@ -9,6 +9,7 @@ import {
   FaCheck,
   FaChevronRight,
   FaCommentDots,
+  FaFileLines,
   FaLayerGroup,
   FaPaperPlane,
   FaSpinner,
@@ -21,6 +22,7 @@ import { cn, getDaysUntil } from "@/lib/utils";
 import type {
   Contest,
   ContestTeamHandoff,
+  ContestWorkspaceAccessRole,
   TeamActivityEvent,
   TeamAsyncJobResponse,
   TeamAsyncJobSnapshot,
@@ -57,6 +59,8 @@ type PendingActivityState = {
 };
 
 type TeamSimulationDashboardProps = {
+  accessRole: ContestWorkspaceAccessRole;
+  canEditTeam: boolean;
   contest: Contest;
   viewerLabel: string;
   ideationSessionId: string;
@@ -142,6 +146,18 @@ function getMemberStatusClass(status: TeamMember["status"]) {
   }
 
   return "bg-[var(--success)]";
+}
+
+function getAccessRoleLabel(role: ContestWorkspaceAccessRole) {
+  if (role === "owner") {
+    return "Owner";
+  }
+
+  if (role === "member") {
+    return "Member";
+  }
+
+  return "Reviewer";
 }
 
 function buildPendingActivity(descriptor: PendingDescriptor): PendingActivityState {
@@ -245,12 +261,14 @@ function TaskColumn({
   title,
   tasks,
   empty,
+  canEdit,
   onStart,
   onComplete,
 }: {
   title: string;
   tasks: TeamTask[];
   empty: string;
+  canEdit: boolean;
   onStart: (taskId: string) => void;
   onComplete: (taskId: string) => void;
 }) {
@@ -272,12 +290,22 @@ function TaskColumn({
                 {task.assigneeLabel ? `${task.assigneeLabel} · ` : ""}{getTaskStatusLabel(task.status)}
               </div>
               {task.status === "todo" ? (
-                <button type="button" onClick={() => onStart(task.id)} className="secondary-button mt-4 w-full">
+                <button
+                  type="button"
+                  onClick={() => onStart(task.id)}
+                  className="secondary-button mt-4 w-full disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={!canEdit}
+                >
                   시작하기
                 </button>
               ) : null}
               {task.status === "in_progress" ? (
-                <button type="button" onClick={() => onComplete(task.id)} className="primary-button mt-4 w-full">
+                <button
+                  type="button"
+                  onClick={() => onComplete(task.id)}
+                  className="primary-button mt-4 w-full disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={!canEdit}
+                >
                   완료 처리
                 </button>
               ) : null}
@@ -292,6 +320,8 @@ function TaskColumn({
 }
 
 export function TeamSimulationDashboard({
+  accessRole,
+  canEditTeam,
   contest,
   viewerLabel,
   ideationSessionId,
@@ -326,6 +356,11 @@ export function TeamSimulationDashboard({
   const doneTasks = teamSession?.tasks.filter((task) => task.status === "done") ?? [];
   const kickoffNotStarted = !teamSession?.kickoffChoice;
   const pendingActivityId = pendingActivity?.id;
+  const accessRoleLabel = getAccessRoleLabel(accessRole);
+  const readOnlyNotice =
+    accessRole === "reviewer"
+      ? "리뷰어 권한으로 팀 현황을 읽기 전용으로 보고 있습니다. 의견은 제출 워크스페이스에서 남길 수 있습니다."
+      : "협업 멤버 권한으로 팀 현황을 함께 보고 있습니다. 실제 팀 변경은 owner가 진행합니다.";
 
   const replaceActivityEvents = (nextEvents: TeamActivityEvent[]) => {
     activityCursorRef.current = nextEvents[0]?.sequence ?? activityCursorRef.current;
@@ -407,6 +442,10 @@ export function TeamSimulationDashboard({
   }, [contest.id, teamSession]);
 
   useEffect(() => {
+    if (!canEditTeam) {
+      return;
+    }
+
     if (data || bootstrapJob) {
       return;
     }
@@ -446,7 +485,7 @@ export function TeamSimulationDashboard({
         setError("팀 빌딩을 시작하지 못했습니다.");
       }
     });
-  }, [bootstrapJob, contest.id, data, ideationSessionId]);
+  }, [bootstrapJob, canEditTeam, contest.id, data, ideationSessionId]);
 
   useEffect(() => {
     if (!bootstrapJob || bootstrapJob.status === "completed" || bootstrapJob.status === "failed") {
@@ -634,7 +673,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleKickoff(optionId: string) {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -645,7 +684,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleSendMessage() {
-    if (!teamSession || !message.trim()) {
+    if (!teamSession || !message.trim() || !canEditTeam) {
       return;
     }
 
@@ -658,7 +697,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleRegenerateAll() {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -669,7 +708,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleRegenerateSingle(memberId: string) {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -682,7 +721,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleClaimRole(memberId: string) {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -695,7 +734,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleTaskMove(taskId: string, status: TeamTask["status"]) {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -709,7 +748,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleTaskComplete(taskId: string) {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -722,7 +761,7 @@ export function TeamSimulationDashboard({
   }
 
   function handleCompleteTeam() {
-    if (!teamSession) {
+    if (!teamSession || !canEditTeam) {
       return;
     }
 
@@ -759,23 +798,33 @@ export function TeamSimulationDashboard({
           <section className="surface-card mt-6 rounded-[32px] p-7 md:p-8">
             <div className="eyebrow">팀 빌딩 준비</div>
             <h2 className="text-balance mt-3 text-3xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-4xl">
-              {bootstrapJob ? "AI 팀 구성을 만드는 중입니다." : "확정한 아이디어로 팀을 세팅하는 중입니다."}
+              {canEditTeam
+                ? bootstrapJob
+                  ? "AI 팀 구성을 만드는 중입니다."
+                  : "확정한 아이디어로 팀을 세팅하는 중입니다."
+                : "owner가 팀 빌딩을 시작하면 이 화면에 바로 공유됩니다."}
             </h2>
             <p className="text-pretty mt-4 text-sm leading-7 text-[var(--muted)]">
-              {initialHandoff.ideaTitle} 아이디어를 기준으로 공고, 심사 기준, 제출 형식까지 같이 보고 있어요. 준비가 끝나면 바로 팀 대시보드가 열립니다.
+              {canEditTeam
+                ? `${initialHandoff.ideaTitle} 아이디어를 기준으로 공고, 심사 기준, 제출 형식까지 같이 보고 있어요. 준비가 끝나면 바로 팀 대시보드가 열립니다.`
+                : `${initialHandoff.ideaTitle} 아이디어 기준 공유 워크스페이스에는 접근했지만, 아직 owner가 팀 세션을 시작하지 않았습니다. 세션이 열리면 이 화면에서 준비 현황을 바로 확인할 수 있습니다.`}
             </p>
 
-            <div className="loading-note mt-6">
-              <span className="loading-note-spinner" aria-hidden />
-              <div className="min-w-0">
-                <div className="loading-note-title">{bootstrapJob?.progressLabel ?? "이 공모전에 맞는 역할 조합을 만들고 있어요"}</div>
-                <div className="loading-note-body">잠깐만 기다리면 킥오프 선택지, 첫 태스크, 작업물 카드까지 같이 붙여서 열어둘게요.</div>
+            {canEditTeam ? (
+              <div className="loading-note mt-6">
+                <span className="loading-note-spinner" aria-hidden />
+                <div className="min-w-0">
+                  <div className="loading-note-title">{bootstrapJob?.progressLabel ?? "이 공모전에 맞는 역할 조합을 만들고 있어요"}</div>
+                  <div className="loading-note-body">잠깐만 기다리면 킥오프 선택지, 첫 태스크, 작업물 카드까지 같이 붙여서 열어둘게요.</div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="team-empty-state mt-6">읽기 전용 협업자는 team session이 생성된 뒤 현황을 함께 볼 수 있습니다.</div>
+            )}
           </section>
         </main>
 
-        {isPending ? (
+        {canEditTeam && isPending ? (
           <div className="team-loading-chip">
             <FaSpinner className="h-3.5 w-3.5 animate-spin" aria-hidden />
             {bootstrapJob?.progressLabel ?? "AI 팀 구성을 준비 중입니다."}
@@ -812,15 +861,27 @@ export function TeamSimulationDashboard({
 
       {activeTab === "chat" ? (
         <div className="team-chat-surface">
+          {!canEditTeam ? (
+            <div className="team-empty-state mb-4">{readOnlyNotice}</div>
+          ) : null}
+
           {kickoffNotStarted ? (
             <div className="team-kickoff-card">
               <div className="text-sm font-semibold text-[var(--foreground)]">첫 방향만 고르면 AI 팀이 바로 움직입니다.</div>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                {featuredMember?.name ?? "AI 팀장"}이 먼저 팀을 열어둘게요. 무엇부터 시작할지 하나만 골라주세요.
+                {canEditTeam
+                  ? `${featuredMember?.name ?? "AI 팀장"}이 먼저 팀을 열어둘게요. 무엇부터 시작할지 하나만 골라주세요.`
+                  : "owner가 첫 방향을 고르면, 이후 진행 로그와 팀 결과가 이 화면에 바로 반영됩니다."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {kickoffOptions.map((option) => (
-                  <button key={option.id} type="button" onClick={() => handleKickoff(option.id)} className="secondary-button">
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleKickoff(option.id)}
+                    className="secondary-button disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={!canEditTeam}
+                  >
                     <FaBolt className="h-3.5 w-3.5" aria-hidden />
                     {option.label}
                   </button>
@@ -850,11 +911,25 @@ export function TeamSimulationDashboard({
               onChange={(event) => setMessage(event.target.value)}
               className="team-chat-textarea"
               rows={3}
-              placeholder="예: 이 아이디어를 심사위원 입장에서 더 설득력 있게 만들고 싶어"
+              placeholder={
+                canEditTeam
+                  ? "예: 이 아이디어를 심사위원 입장에서 더 설득력 있게 만들고 싶어"
+                  : "읽기 전용 권한에서는 메시지를 보낼 수 없습니다."
+              }
+              disabled={!canEditTeam}
             />
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs text-[var(--muted)]">AI 팀원은 답변과 함께 다음 태스크나 작업물 카드를 같이 제안합니다.</div>
-              <button type="button" onClick={handleSendMessage} className="primary-button">
+              <div className="text-xs text-[var(--muted)]">
+                {canEditTeam
+                  ? "AI 팀원은 답변과 함께 다음 태스크나 작업물 카드를 같이 제안합니다."
+                  : "댓글과 제안은 제출 워크스페이스에서 남기고, owner가 팀 시뮬레이션 액션을 진행합니다."}
+              </div>
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                className="primary-button disabled:cursor-not-allowed disabled:opacity-55"
+                disabled={!canEditTeam}
+              >
                 <FaPaperPlane className="h-3.5 w-3.5" aria-hidden />
                 메시지 보내기
               </button>
@@ -895,6 +970,7 @@ export function TeamSimulationDashboard({
             title="해야 할 일"
             tasks={todoTasks}
             empty="막 열어둔 일은 여기 쌓입니다."
+            canEdit={canEditTeam}
             onStart={(taskId) => handleTaskMove(taskId, "in_progress")}
             onComplete={handleTaskComplete}
           />
@@ -902,6 +978,7 @@ export function TeamSimulationDashboard({
             title="진행 중"
             tasks={doingTasks}
             empty="시작하면 이 칸으로 이동합니다."
+            canEdit={canEditTeam}
             onStart={(taskId) => handleTaskMove(taskId, "in_progress")}
             onComplete={handleTaskComplete}
           />
@@ -909,6 +986,7 @@ export function TeamSimulationDashboard({
             title="완료"
             tasks={doneTasks}
             empty="완료한 일이 여기에 쌓입니다."
+            canEdit={canEditTeam}
             onStart={(taskId) => handleTaskMove(taskId, "in_progress")}
             onComplete={handleTaskComplete}
           />
@@ -924,9 +1002,13 @@ export function TeamSimulationDashboard({
           <div className="eyebrow">Team</div>
           <div className="mt-2 text-xl font-semibold text-[var(--foreground)]">{teamSession.teamName}</div>
         </div>
-        <button type="button" onClick={handleRegenerateAll} className="hero-action-button" aria-label="팀 다시 짜기">
-          <FaArrowRotateRight className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        {canEditTeam ? (
+          <button type="button" onClick={handleRegenerateAll} className="hero-action-button" aria-label="팀 다시 짜기">
+            <FaArrowRotateRight className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : (
+          <span className="team-head-pill chip-nowrap">{accessRoleLabel}</span>
+        )}
       </div>
       <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{teamSession.teamIntro}</p>
 
@@ -968,6 +1050,8 @@ export function TeamSimulationDashboard({
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {member.isUserClaimed ? (
                 <span className="team-status-pill is-ready">내가 맡음</span>
+              ) : !canEditTeam ? (
+                <span className="team-status-pill">읽기 전용</span>
               ) : (
                 <>
                   <button type="button" onClick={() => handleRegenerateSingle(member.id)} className="secondary-button min-w-0">
@@ -1078,10 +1162,14 @@ export function TeamSimulationDashboard({
         </div>
       </div>
 
-      <button type="button" onClick={handleCompleteTeam} className="primary-button mt-6 w-full">
-        <FaWandMagicSparkles className="h-3.5 w-3.5" aria-hidden />
-        이번 준비 세션 완료하기
-      </button>
+      {canEditTeam ? (
+        <button type="button" onClick={handleCompleteTeam} className="primary-button mt-6 w-full">
+          <FaWandMagicSparkles className="h-3.5 w-3.5" aria-hidden />
+          이번 준비 세션 완료하기
+        </button>
+      ) : (
+        <div className="team-empty-state mt-6">{readOnlyNotice}</div>
+      )}
     </aside>
   );
 
@@ -1116,10 +1204,17 @@ export function TeamSimulationDashboard({
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">가장 급한 일</div>
               <div className="mt-2 text-sm leading-6 text-[var(--foreground)]">{teamSession.currentFocus ?? "첫 방향을 고르면 급한 일이 정리됩니다."}</div>
             </div>
+            <Link href={`/workspace/${contest.id}?session=${ideationSessionId}`} className="secondary-button">
+              <FaFileLines className="h-3.5 w-3.5" aria-hidden />
+              제출 워크스페이스
+            </Link>
           </div>
         </header>
 
         {error ? <div className="team-error-banner mt-5">{error}</div> : null}
+        {!canEditTeam ? (
+          <div className="team-empty-state mt-5">{readOnlyNotice}</div>
+        ) : null}
 
         <div className="mt-6 hidden gap-5 xl:grid xl:grid-cols-[320px_minmax(0,1fr)_300px]">
           {teamPanel}
@@ -1172,26 +1267,30 @@ export function TeamSimulationDashboard({
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => setShowIntroOverlay(false)} className="primary-button flex-1">
                 <FaUsers className="h-3.5 w-3.5" aria-hidden />
-                이 팀으로 시작하기
+                {canEditTeam ? "이 팀으로 시작하기" : "팀 현황 보기"}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const firstMember = activeMembers.find((member) => !member.isUserClaimed);
+              {canEditTeam ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstMember = activeMembers.find((member) => !member.isUserClaimed);
 
-                  if (firstMember) {
-                    handleRegenerateSingle(firstMember.id);
-                  }
-                }}
-                className="secondary-button flex-1"
-              >
-                <FaWandMagicSparkles className="h-3.5 w-3.5" aria-hidden />
-                한 명 바꿔줘
-              </button>
-              <button type="button" onClick={handleRegenerateAll} className="secondary-button flex-1">
-                <FaArrowRotateRight className="h-3.5 w-3.5" aria-hidden />
-                전부 새로 짜줘
-              </button>
+                      if (firstMember) {
+                        handleRegenerateSingle(firstMember.id);
+                      }
+                    }}
+                    className="secondary-button flex-1"
+                  >
+                    <FaWandMagicSparkles className="h-3.5 w-3.5" aria-hidden />
+                    한 명 바꿔줘
+                  </button>
+                  <button type="button" onClick={handleRegenerateAll} className="secondary-button flex-1">
+                    <FaArrowRotateRight className="h-3.5 w-3.5" aria-hidden />
+                    전부 새로 짜줘
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

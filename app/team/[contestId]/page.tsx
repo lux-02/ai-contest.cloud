@@ -4,6 +4,7 @@ import { TeamSimulationDashboard } from "@/components/team-simulation-dashboard"
 import { getContestById } from "@/lib/queries";
 import { getContestTeamHandoff } from "@/lib/server/contest-ideation";
 import { getTeamSessionSnapshot } from "@/lib/server/contest-team";
+import { resolveContestWorkspaceAccess } from "@/lib/server/contest-workspace-access";
 import { requireViewerUser } from "@/lib/server/viewer-auth";
 
 type PageProps = {
@@ -58,10 +59,31 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
     );
   }
 
+  const access = await resolveContestWorkspaceAccess(contestId, session, user.id);
+
+  if (!access || !access.canUseTeamDashboard) {
+    return (
+      <main className="mx-auto max-w-4xl px-6 py-16">
+        <section className="surface-card rounded-[32px] p-8 md:p-10">
+          <div className="eyebrow">접근 권한 없음</div>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] text-[var(--foreground)] md:text-5xl">
+            이 팀 빌딩 세션에는 접근할 수 없습니다.
+          </h1>
+          <p className="mt-4 text-base leading-7 text-[var(--muted)]">
+            워크스페이스 owner가 아니거나, 초대를 아직 수락하지 않았을 수 있습니다.
+          </p>
+          <Link href="/contests" className="primary-button mt-8">
+            공모전 탐색으로 돌아가기
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   const [contest, handoff, snapshot] = await Promise.all([
     getContestById(contestId),
-    getContestTeamHandoff(contestId, session, user.id),
-    getTeamSessionSnapshot(contestId, session, user.id),
+    getContestTeamHandoff(contestId, session, access.ownerUserId),
+    getTeamSessionSnapshot(contestId, session, access.ownerUserId),
   ]);
 
   if (!contest || !handoff) {
@@ -85,6 +107,8 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
 
   return (
     <TeamSimulationDashboard
+      accessRole={access.role}
+      canEditTeam={access.canEditTeam}
       contest={contest}
       viewerLabel={resolveViewerLabel(user)}
       ideationSessionId={session}

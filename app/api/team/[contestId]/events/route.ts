@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { listTeamActivityEvents } from "@/lib/server/contest-team";
-import { getTeamApiContext } from "@/lib/server/team-api";
+import { getTeamWorkspaceApiContext } from "@/lib/server/team-api";
 
 export const runtime = "nodejs";
 
@@ -16,12 +16,6 @@ const HEARTBEAT_INTERVAL_MS = 15000;
 
 export async function GET(request: Request, context: RouteContext) {
   const { contestId } = await context.params;
-  const resolved = await getTeamApiContext(contestId);
-
-  if ("response" in resolved) {
-    return resolved.response;
-  }
-
   const { searchParams } = new URL(request.url);
   const teamSessionId = searchParams.get("teamSessionId");
   const afterSequenceValue = searchParams.get("afterSequence");
@@ -34,6 +28,17 @@ export async function GET(request: Request, context: RouteContext) {
   if (afterSequenceValue && Number.isNaN(afterSequence)) {
     return NextResponse.json({ error: "afterSequence 값이 올바르지 않습니다." }, { status: 400 });
   }
+
+  const resolved = await getTeamWorkspaceApiContext({
+    contestId,
+    teamSessionId,
+  });
+
+  if (!("access" in resolved)) {
+    return resolved.response;
+  }
+
+  const access = resolved.access;
 
   const encoder = new TextEncoder();
 
@@ -57,7 +62,7 @@ export async function GET(request: Request, context: RouteContext) {
           const events = await listTeamActivityEvents({
             contestId,
             teamSessionId,
-            userId: resolved.user.id,
+            userId: access.ownerUserId,
             afterSequence: currentSequence,
           });
 
