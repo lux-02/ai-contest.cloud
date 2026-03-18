@@ -30,3 +30,5 @@ main().catch((error) => {
   console.error("[ai-jobs] worker failed", error);
   process.exitCode = 1;
 });
+
+export {};

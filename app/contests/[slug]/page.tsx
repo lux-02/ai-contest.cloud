@@ -4,8 +4,11 @@ import {
   FaArrowRight,
   FaBullseye,
   FaCircleCheck,
+  FaCircleInfo,
   FaClock,
   FaFileLines,
+  FaShieldHalved,
+  FaTriangleExclamation,
   FaTrophy,
   FaWandMagicSparkles,
 } from "react-icons/fa6";
@@ -27,6 +30,7 @@ import {
   formatDate,
   formatDeadlineLabel,
   formatDifficulty,
+  getDaysUntil,
   formatLanguage,
   formatOrganizerType,
   formatMode,
@@ -220,6 +224,169 @@ function formatOrganizerTrust(contest: Contest) {
   return contest.organizerType ? formatOrganizerType(contest.organizerType) : "주최 성격 미정";
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return "기록 없음";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "기록 해석 실패";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatCompletenessLabel(contest: Contest) {
+  const status = contest.provenance?.completeness.status;
+
+  if (status === "complete") {
+    return "핵심 필드 정리 완료";
+  }
+
+  if (status === "partial") {
+    return "일부 필드 재검토 필요";
+  }
+
+  if (status === "sparse") {
+    return "누락 필드 많음";
+  }
+
+  return "신뢰도 정보 미정";
+}
+
+type ReadinessSeverity = "blocker" | "caution" | "ready";
+
+type ReadinessItem = {
+  severity: ReadinessSeverity;
+  label: string;
+  message: string;
+};
+
+function buildReadinessItems(contest: Contest): ReadinessItem[] {
+  const items: ReadinessItem[] = [];
+  const daysUntilDeadline = getDaysUntil(contest.deadline);
+
+  if (!contest.deadline) {
+    items.push({
+      severity: "blocker",
+      label: "마감일 미확인",
+      message: "마감 시각이 정리되지 않았습니다. 신청 전에 원문 공고에서 제출 마감 시점을 다시 확인해야 합니다.",
+    });
+  } else if ((daysUntilDeadline ?? 0) < 0) {
+    items.push({
+      severity: "blocker",
+      label: "접수 종료 가능성",
+      message: "현재 데이터 기준으로 마감일이 지났습니다. 재공고 여부를 원문 페이지에서 먼저 확인하세요.",
+    });
+  } else if ((daysUntilDeadline ?? 99) <= 3) {
+    items.push({
+      severity: "caution",
+      label: "마감 임박",
+      message: `${formatDeadlineLabel(contest.deadline)} 상태입니다. 제출물 형식과 접수 링크를 먼저 검증한 뒤 전략 작업을 시작하는 편이 안전합니다.`,
+    });
+  } else {
+    items.push({
+      severity: "ready",
+      label: "일정 여유 확인",
+      message: `${formatDeadlineLabel(contest.deadline)} 기준으로 준비 일정을 잡을 수 있습니다.`,
+    });
+  }
+
+  if (!contest.applyUrl) {
+    items.push({
+      severity: "blocker",
+      label: "신청 링크 미정",
+      message: "접수 경로가 정리되지 않았습니다. 외부 신청 페이지를 확인하기 전에는 실제 제출 준비를 끝내도 접수가 막힐 수 있습니다.",
+    });
+  }
+
+  if (!contest.eligibilityText.trim()) {
+    items.push({
+      severity: "blocker",
+      label: "지원 자격 미정리",
+      message: "참가 대상과 제한 조건이 비어 있습니다. 팀 구성 전에 원문 공고에서 응모 자격을 먼저 확인해야 합니다.",
+    });
+  } else {
+    items.push({
+      severity: "ready",
+      label: "지원 대상 정리",
+      message: buildCompactSummary(contest.eligibilityText, 2) || "지원 자격이 정리돼 있습니다.",
+    });
+  }
+
+  if ((contest.submissionItems?.length ?? 0) === 0 && !contest.submissionFormat) {
+    items.push({
+      severity: "blocker",
+      label: "제출 형식 미정",
+      message: "필수 제출물과 형식이 비어 있습니다. 제출 패키지를 만들기 전에 원문 공고를 다시 검수해야 합니다.",
+    });
+  } else {
+    items.push({
+      severity: "ready",
+      label: "제출 항목 확인 가능",
+      message: buildSubmissionHighlights(contest, 2).join(" / ") || "접수 형식이 정리돼 있습니다.",
+    });
+  }
+
+  if ((contest.judgingCriteria?.length ?? 0) === 0) {
+    items.push({
+      severity: "caution",
+      label: "심사 기준 불완전",
+      message: "정규화된 심사 기준이 없습니다. 전략을 확정하기 전에 원문 요강이나 FAQ에서 평가 항목을 보강하는 편이 좋습니다.",
+    });
+  }
+
+  if (contest.toolsAllowed.length === 0) {
+    items.push({
+      severity: "caution",
+      label: "AI 사용 정책 불명",
+      message: "허용 도구나 생성형 AI 사용 조건이 정리되지 않았습니다. 규정 위반 위험을 줄이려면 주최 측 공지에서 AI 사용 범위를 먼저 확인하세요.",
+    });
+  } else {
+    items.push({
+      severity: "ready",
+      label: "도구 정책 단서 있음",
+      message: `현재 정리된 허용 도구: ${contest.toolsAllowed.slice(0, 3).join(", ")}`,
+    });
+  }
+
+  return items;
+}
+
+function getReadinessTone(severity: ReadinessSeverity) {
+  if (severity === "blocker") {
+    return {
+      icon: <FaTriangleExclamation className="h-3.5 w-3.5 text-[rgb(255,125,136)]" aria-hidden />,
+      label: "즉시 확인",
+      cardClassName: "border-[rgba(255,125,136,0.18)] bg-[rgba(255,125,136,0.08)]",
+      labelClassName: "text-[rgb(255,196,201)]",
+    };
+  }
+
+  if (severity === "caution") {
+    return {
+      icon: <FaShieldHalved className="h-3.5 w-3.5 text-[rgb(255,200,87)]" aria-hidden />,
+      label: "주의",
+      cardClassName: "border-[rgba(255,200,87,0.18)] bg-[rgba(255,200,87,0.08)]",
+      labelClassName: "text-[rgb(255,224,163)]",
+    };
+  }
+
+  return {
+    icon: <FaCircleCheck className="h-3.5 w-3.5 text-[rgb(126,211,170)]" aria-hidden />,
+    label: "준비됨",
+    cardClassName: "border-[rgba(126,211,170,0.18)] bg-[rgba(126,211,170,0.08)]",
+    labelClassName: "text-[rgb(204,244,222)]",
+  };
+}
+
 function ContentBlocks({ text, emptyText = "내용 미정" }: { text?: string | null; emptyText?: string }) {
   const blocks = buildContentBlocks(text);
 
@@ -286,6 +453,30 @@ function QuickCheckRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ReadinessRow({ item }: { item: ReadinessItem }) {
+  const tone = getReadinessTone(item.severity);
+
+  return (
+    <div className={`rounded-[20px] border px-4 py-3 ${tone.cardClassName}`}>
+      <div className="flex items-center gap-2">
+        {tone.icon}
+        <div className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${tone.labelClassName}`}>{tone.label}</div>
+      </div>
+      <div className="mt-2 text-sm font-semibold text-[var(--foreground)]">{item.label}</div>
+      <p className="mt-1 text-sm leading-6 text-[var(--foreground)]/90">{item.message}</p>
+    </div>
+  );
+}
+
+function ProvenanceRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">{label}</div>
+      <div className="mt-2 text-sm leading-6 text-[var(--foreground)]">{value}</div>
+    </div>
+  );
+}
+
 function SectionJumpLink({ href, label }: { href: string; label: string }) {
   return (
     <a
@@ -323,6 +514,10 @@ export default async function ContestDetailPage({ params }: PageProps) {
   const rewardHighlights = buildRewardHighlights(contestMetrics);
   const showStandaloneSubmissionFormat = hasStandaloneSubmissionFormat(contestMetrics);
   const heroRewardValue = buildHeroRewardValue(contestMetrics);
+  const readinessItems = buildReadinessItems(contestMetrics);
+  const readinessBlockers = readinessItems.filter((item) => item.severity === "blocker");
+  const readinessCautions = readinessItems.filter((item) => item.severity === "caution");
+  const provenanceWarnings = contestMetrics.provenance?.warnings ?? [];
 
   return (
     <main className="mx-auto max-w-7xl px-6 pb-32 pt-10 md:pb-20">
@@ -471,6 +666,87 @@ export default async function ContestDetailPage({ params }: PageProps) {
                 value={`${formatOrganizerTrust(contestMetrics)} 성격의 공모전`}
               />
             </div>
+          </aside>
+
+          <aside className="surface-card rounded-[34px] p-8">
+            <div className="eyebrow">지원 가능 여부</div>
+            <div className="mt-3 flex items-start gap-2 rounded-[20px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+              <FaCircleInfo className="mt-0.5 h-3.5 w-3.5 text-[var(--foreground)]" aria-hidden />
+              <p className="text-sm leading-6 text-[var(--muted)]">
+                전략 분석을 시작하기 전에 규정 위반 가능성과 정보 누락을 먼저 줄이는 영역입니다.
+              </p>
+            </div>
+
+            {readinessBlockers.length || readinessCautions.length ? (
+              <div className="mt-4 space-y-3">
+                {readinessItems.map((item) => (
+                  <ReadinessRow key={`${item.severity}-${item.label}`} item={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[22px] border border-[rgba(126,211,170,0.18)] bg-[rgba(126,211,170,0.08)] p-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[rgb(204,244,222)]">
+                  <FaCircleCheck className="h-3.5 w-3.5 text-[rgb(126,211,170)]" aria-hidden />
+                  기본 검토 완료
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">
+                  현재 정리된 정보 기준으로는 즉시 확인해야 할 차단 이슈가 없습니다.
+                </p>
+              </div>
+            )}
+          </aside>
+
+          <aside className="surface-card rounded-[34px] p-8">
+            <div className="eyebrow">데이터 신뢰도</div>
+            <div className="mt-4 space-y-3">
+              <ProvenanceRow
+                label="출처"
+                value={
+                  contestMetrics.provenance?.source.url ? (
+                    <a
+                      href={contestMetrics.provenance.source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline decoration-[rgba(245,241,232,0.35)] underline-offset-4"
+                    >
+                      {contestMetrics.provenance.source.label}
+                    </a>
+                  ) : (
+                    contestMetrics.provenance?.source.label ?? "출처 미기록"
+                  )
+                }
+              />
+              <ProvenanceRow
+                label="최근 업데이트"
+                value={
+                  contestMetrics.provenance?.update.updatedAt
+                    ? formatDateTime(contestMetrics.provenance.update.updatedAt)
+                    : contestMetrics.provenance?.freshness.label ?? "업데이트 정보 없음"
+                }
+              />
+              <ProvenanceRow
+                label="최신성"
+                value={contestMetrics.provenance?.freshness.label ?? "최신성 판단 불가"}
+              />
+              <ProvenanceRow label="정규화 상태" value={formatCompletenessLabel(contestMetrics)} />
+            </div>
+
+            {provenanceWarnings.length ? (
+              <div className="mt-4 rounded-[22px] border border-[rgba(255,200,87,0.18)] bg-[rgba(255,200,87,0.08)] p-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[rgb(255,224,163)]">
+                  <FaShieldHalved className="h-3.5 w-3.5 text-[rgb(255,200,87)]" aria-hidden />
+                  재확인 필요
+                </div>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--foreground)]">
+                  {provenanceWarnings.slice(0, 4).map((warning) => (
+                    <li key={warning} className="flex gap-2">
+                      <span className="mt-[0.45rem] inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-[rgb(255,224,163)]" />
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </aside>
 
           <aside className="surface-card rounded-[34px] p-8">

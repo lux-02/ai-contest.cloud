@@ -9,6 +9,13 @@ type CachedEnvelope<T> = {
   payload: T;
 };
 
+export type RemoteAiCircuitState = {
+  failures: number;
+  openedUntil: number;
+};
+
+const REMOTE_AI_CIRCUIT_STATE_PREFIX = "remote-ai:circuit";
+
 export const getUpstashRedis = cache(() => {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -22,6 +29,139 @@ export const getUpstashRedis = cache(() => {
     token,
   });
 });
+
+declare global {
+  var __aiContestRemoteAiCircuits: Map<string, RemoteAiCircuitState> | undefined;
+}
+
+function getRemoteAiCircuitKey(service: string) {
+  return `${REMOTE_AI_CIRCUIT_STATE_PREFIX}:${service}`;
+}
+
+function createRemoteAiCircuitState(): RemoteAiCircuitState {
+  return {
+    failures: 0,
+    openedUntil: 0,
+  };
+}
+
+function normalizeRemoteAiCircuitState(value: unknown): RemoteAiCircuitState | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const { failures, openedUntil } = value as Partial<RemoteAiCircuitState>;
+
+  if (typeof failures !== "number" || typeof openedUntil !== "number") {
+    return null;
+  }
+
+  return {
+    failures: Math.max(0, Math.floor(failures)),
+    openedUntil: Math.max(0, Math.floor(openedUntil)),
+  };
+}
+
+function getLocalRemoteAiCircuitRegistry() {
+  globalThis.__aiContestRemoteAiCircuits ??= new Map<string, RemoteAiCircuitState>();
+  return globalThis.__aiContestRemoteAiCircuits;
+}
+
+async function getLocalRemoteAiCircuitState(service: string) {
+  const registry = getLocalRemoteAiCircuitRegistry();
+  const existing = registry.get(service);
+
+  if (existing && existing.openedUntil > 0 && existing.openedUntil <= Date.now()) {
+    const resetState = createRemoteAiCircuitState();
+    registry.set(service, resetState);
+    return resetState;
+  }
+
+  if (existing) {
+    return existing;
+  }
+
+  const initial = createRemoteAiCircuitState();
+  registry.set(service, initial);
+  return initial;
+}
+
+export async function getRemoteAiCircuitState(service: string): Promise<RemoteAiCircuitState> {
+  const redis = getUpstashRedis();
+
+  if (!redis) {
+    return getLocalRemoteAiCircuitState(service);
+  }
+
+  const key = getRemoteAiCircuitKey(service);
+
+  try {
+    const value = await redis.get<RemoteAiCircuitState>(key);
+    const state = normalizeRemoteAiCircuitState(value);
+
+    if (!state) {
+      return createRemoteAiCircuitState();
+    }
+
+    if (state.openedUntil > 0 && state.openedUntil <= Date.now()) {
+      await resetRemoteAiCircuitState(service);
+      return createRemoteAiCircuitState();
+    }
+
+    return state;
+  } catch {
+    return getLocalRemoteAiCircuitState(service);
+  }
+}
+
+export async function setRemoteAiCircuitState(service: string, state: RemoteAiCircuitState) {
+  const redis = getUpstashRedis();
+
+  if (!redis) {
+    getLocalRemoteAiCircuitRegistry().set(service, state);
+    return;
+  }
+
+  try {
+    await redis.set(getRemoteAiCircuitKey(service), {
+      failures: Math.max(0, Math.floor(state.failures)),
+      openedUntil: Math.max(0, Math.floor(state.openedUntil)),
+    });
+  } catch {
+    getLocalRemoteAiCircuitRegistry().set(service, state);
+  }
+}
+
+export async function resetRemoteAiCircuitState(service: string) {
+  const redis = getUpstashRedis();
+
+  if (!redis) {
+    getLocalRemoteAiCircuitRegistry().set(service, createRemoteAiCircuitState());
+    return;
+  }
+
+  try {
+    await redis.del(getRemoteAiCircuitKey(service));
+  } catch {
+    getLocalRemoteAiCircuitRegistry().set(service, createRemoteAiCircuitState());
+  }
+}
+
+export async function markRemoteAiCircuitFailure(
+  service: string,
+  failureThreshold: number,
+  cooldownMs: number,
+) {
+  const current = await getRemoteAiCircuitState(service);
+  const nextFailures = current.failures + 1;
+  const nextState: RemoteAiCircuitState = {
+    failures: nextFailures,
+    openedUntil: nextFailures >= failureThreshold ? Date.now() + cooldownMs : current.openedUntil,
+  };
+
+  await setRemoteAiCircuitState(service, nextState);
+  return nextState;
+}
 
 export function canUseUpstashRedis() {
   return getUpstashRedis() !== null;

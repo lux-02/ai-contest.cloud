@@ -151,6 +151,9 @@ export type TeamRegenerateMode = (typeof teamRegenerateModeOptions)[number]["id"
 export type ContestMode = "online" | "offline" | "hybrid";
 export type ContestStatus = "draft" | "published" | "archived";
 export type ContestAnalysisStatus = "pending" | "completed" | "failed";
+export type ContestTrustSourceKind = "database" | "mock";
+export type ContestTrustFreshnessStatus = "fresh" | "stale" | "unknown";
+export type ContestTrustCompletenessStatus = "complete" | "partial" | "sparse";
 
 export type ContestBadgeMeta = (typeof contestBadgeOptions)[number];
 export type ContestCategoryMeta = (typeof contestCategoryOptions)[number];
@@ -178,6 +181,38 @@ export interface ContestAnalysis {
   promptVersion?: string;
   modelName?: string;
   analysisStatus: ContestAnalysisStatus;
+}
+
+export interface ContestTrustSourceInfo {
+  kind: ContestTrustSourceKind;
+  label: string;
+  url?: string | null;
+  note?: string | null;
+}
+
+export interface ContestTrustUpdateInfo {
+  fetchedAt: string;
+  updatedAt?: string | null;
+}
+
+export interface ContestTrustFreshnessInfo {
+  status: ContestTrustFreshnessStatus;
+  label: string;
+  ageInDays?: number | null;
+  warning?: string | null;
+}
+
+export interface ContestTrustCompletenessInfo {
+  status: ContestTrustCompletenessStatus;
+  warnings: string[];
+}
+
+export interface ContestTrustMetadata {
+  source: ContestTrustSourceInfo;
+  update: ContestTrustUpdateInfo;
+  freshness: ContestTrustFreshnessInfo;
+  completeness: ContestTrustCompletenessInfo;
+  warnings: string[];
 }
 
 export interface Contest {
@@ -222,13 +257,43 @@ export interface Contest {
   applyCount?: number;
   status: ContestStatus;
   analysis: ContestAnalysis;
+  provenance?: ContestTrustMetadata;
 }
 
 export interface ContestTrackingState {
   status: ContestTrackingStatus | null;
   reminderEnabled: boolean;
   reminderDaysBefore: number;
+  lastReminderSentAt?: string;
   updatedAt?: string;
+}
+
+export type ContestStrengthConfidence = "starter" | "growing" | "strong";
+export type ContestTeamPreference = "team" | "individual" | "mixed";
+
+export interface ContestStrengthProfile {
+  sourceContestCount: number;
+  deepSignalCount: number;
+  confidence: ContestStrengthConfidence;
+  topCategories: ContestCategory[];
+  preferredDifficulty?: ContestDifficulty | null;
+  preferredOrganizerType?: ContestOrganizerType | null;
+  teamPreference: ContestTeamPreference;
+  executionReadiness: number;
+  summary: string;
+}
+
+export interface ContestRecommendation {
+  contest: Contest;
+  score: number;
+  fitLabel: string;
+  reasons: string[];
+  matchedCategories: ContestCategory[];
+}
+
+export interface ContestRecommendationSnapshot {
+  profile: ContestStrengthProfile | null;
+  recommendations: ContestRecommendation[];
 }
 
 export interface ContestStrategyIdea {
@@ -273,6 +338,93 @@ export interface ContestStrategyLabResult {
   promptVersion?: string | null;
   modelName?: string | null;
   status: ContestAnalysisStatus;
+}
+
+export type ContestSubmissionChecklistState = "ready" | "todo" | "warning";
+
+export interface ContestSubmissionChecklistItem {
+  label: string;
+  state: ContestSubmissionChecklistState;
+  note: string;
+}
+
+export interface ContestSubmissionPackage {
+  title: string;
+  subtitle: string;
+  overview: string;
+  proposalTitle: string;
+  proposalSubtitle: string;
+  proposalSections: ContestDraftSection[];
+  pitchOutline: string[];
+  demoScenario: string[];
+  checklist: ContestSubmissionChecklistItem[];
+  markdown: string;
+}
+
+export type ContestWorkspaceReviewFocus = "strategy" | "ideation" | "team" | "submission";
+
+export interface ContestWorkspaceReviewNote {
+  id: string;
+  reviewerLabel: string;
+  reviewerRole?: string | null;
+  focusArea: ContestWorkspaceReviewFocus;
+  note: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ContestWorkspaceShareLink {
+  id: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+  shareToken: string;
+  shareUrl: string;
+  createdAt: string;
+  updatedAt?: string;
+  revokedAt?: string | null;
+}
+
+export type ContestWorkspaceAccessRole = "owner" | "member" | "reviewer";
+export type ContestWorkspaceInviteStatus = "pending" | "accepted" | "revoked";
+
+export interface ContestWorkspaceAccess {
+  viewerUserId: string;
+  ownerUserId: string;
+  role: ContestWorkspaceAccessRole;
+  canManage: boolean;
+  canComment: boolean;
+  canExport: boolean;
+  canUseTeamDashboard: boolean;
+  canEditTeam: boolean;
+}
+
+export interface ContestWorkspaceCollaborator {
+  id: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+  memberUserId: string;
+  memberEmail?: string | null;
+  role: ContestWorkspaceAccessRole;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ContestWorkspaceInvite {
+  id: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+  inviteeEmail: string;
+  role: ContestWorkspaceAccessRole;
+  inviteToken: string;
+  inviteUrl: string;
+  status: ContestWorkspaceInviteStatus;
+  createdAt: string;
+  updatedAt?: string;
+  acceptedAt?: string | null;
+  acceptedByUserId?: string | null;
 }
 
 export type StrategyLabJobStatus = "queued" | "running" | "completed" | "failed";
@@ -559,6 +711,17 @@ export interface TeamSimulationTurnResponse {
   kickoffOptions: TeamKickoffOption[];
   coachSummary?: string | null;
   toast?: string | null;
+}
+
+export interface ContestWorkspaceSnapshot {
+  contest: Contest;
+  ideationSession: ContestIdeationSession;
+  handoff: ContestTeamHandoff | null;
+  strategyReport: ContestStrategyLabResult | null;
+  strategySources: ContestStrategyCitation[];
+  teamSnapshot: TeamBootstrapResponse | null;
+  reviewNotes: ContestWorkspaceReviewNote[];
+  submissionPackage: ContestSubmissionPackage;
 }
 
 export interface ContestFilters {

@@ -9,6 +9,7 @@ type ContestTrackingRow = {
   status: ContestTrackingStatus | null;
   reminder_enabled: boolean;
   reminder_days_before: number;
+  last_reminder_sent_at: string | null;
   updated_at: string;
 };
 
@@ -29,8 +30,9 @@ export async function getContestTrackingState(contestId: string): Promise<Contes
 
   const { data, error } = await supabase
     .from("contest_user_tracking")
-    .select("status, reminder_enabled, reminder_days_before, updated_at")
+    .select("status, reminder_enabled, reminder_days_before, last_reminder_sent_at, updated_at")
     .eq("contest_id", contestId)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error || !data) {
@@ -41,6 +43,7 @@ export async function getContestTrackingState(contestId: string): Promise<Contes
     status: data.status,
     reminderEnabled: data.reminder_enabled,
     reminderDaysBefore: data.reminder_days_before,
+    lastReminderSentAt: data.last_reminder_sent_at ?? undefined,
     updatedAt: data.updated_at,
   };
 }
@@ -84,6 +87,7 @@ export async function setContestReminderPreference(
     .from("contest_user_tracking")
     .select("id, status")
     .eq("contest_id", contestId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (existingError) {
@@ -95,7 +99,11 @@ export async function setContestReminderPreference(
   }
 
   if (!reminderEnabled && existing?.status === null) {
-    const { error } = await supabase.from("contest_user_tracking").delete().eq("contest_id", contestId);
+    const { error } = await supabase
+      .from("contest_user_tracking")
+      .delete()
+      .eq("contest_id", contestId)
+      .eq("user_id", userId);
 
     if (error) {
       throw new Error(error.message);
@@ -139,7 +147,8 @@ export async function getTrackedContestsForViewer() {
 
   const { data, error } = await supabase
     .from("contest_user_tracking")
-    .select("contest_id, status, reminder_enabled, reminder_days_before, updated_at")
+    .select("contest_id, status, reminder_enabled, reminder_days_before, last_reminder_sent_at, updated_at")
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
   if (error || !data?.length) {
@@ -163,6 +172,7 @@ export async function getTrackedContestsForViewer() {
           status: row.status,
           reminderEnabled: row.reminder_enabled,
           reminderDaysBefore: row.reminder_days_before,
+          lastReminderSentAt: row.last_reminder_sent_at ?? undefined,
           updatedAt: row.updated_at,
         } satisfies ContestTrackingState,
       };

@@ -12,6 +12,7 @@ import {
   type ContestJudgingCriterion,
   type ContestOrganizerType,
   type ContestStage,
+  type ContestTrustMetadata,
 } from "@/types/contest";
 import { getContestPopularityScore, getDaysUntil } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ type ContestRow = {
   view_count: number | null;
   apply_count: number | null;
   status: Contest["status"];
+  updated_at: string | null;
   contest_badges: { badge: ContestBadge; reason: string | null }[] | null;
   contest_ai_analysis:
     | {
@@ -341,6 +343,157 @@ function buildFallbackJudgingCriteria(judgingFocus?: string | null) {
   }));
 }
 
+function getContestAgeInDays(updatedAt: string, fetchedAt: string) {
+  const updatedTime = new Date(updatedAt).getTime();
+  const fetchedTime = new Date(fetchedAt).getTime();
+
+  if (!Number.isFinite(updatedTime) || !Number.isFinite(fetchedTime)) {
+    return null;
+  }
+
+  const diffDays = Math.floor((fetchedTime - updatedTime) / 86_400_000);
+  return Math.max(diffDays, 0);
+}
+
+function buildContestTrustMetadata(
+  contest: Contest,
+  input: {
+    sourceKind: ContestTrustMetadata["source"]["kind"];
+    fetchedAt: string;
+    updatedAt?: string | null;
+    sourceUrl?: string | null;
+  },
+): ContestTrustMetadata {
+  const source =
+    input.sourceKind === "mock"
+      ? {
+          kind: "mock" as const,
+          label: "개발용 mock 데이터",
+          url: input.sourceUrl ?? contest.sourceUrl ?? contest.url,
+        }
+      : {
+          kind: "database" as const,
+          label: "Supabase contests table",
+          url: input.sourceUrl ?? contest.sourceUrl ?? contest.url,
+        };
+
+  const freshness =
+    source.kind === "mock"
+      ? ({
+          status: "unknown",
+          label: "개발용 샘플 데이터",
+          ageInDays: null,
+          warning: "개발 환경 전용 mock 데이터라 최신성 판단을 보장할 수 없습니다.",
+        } satisfies ContestTrustMetadata["freshness"])
+      : (() => {
+          if (!input.updatedAt) {
+            return {
+              status: "unknown",
+              label: "업데이트 시점 미상",
+              ageInDays: null,
+              warning: "DB 행의 updated_at 값을 읽지 못했습니다.",
+            } satisfies ContestTrustMetadata["freshness"];
+          }
+
+          const ageInDays = getContestAgeInDays(input.updatedAt, input.fetchedAt);
+
+          if (ageInDays === null) {
+            return {
+              status: "unknown",
+              label: "업데이트 시점 파싱 실패",
+              ageInDays: null,
+              warning: "업데이트 시점을 해석하지 못했습니다.",
+            } satisfies ContestTrustMetadata["freshness"];
+          }
+
+          if (ageInDays <= 14) {
+            return {
+              status: "fresh",
+              label: ageInDays === 0 ? "오늘 업데이트" : `${ageInDays}일 전 업데이트`,
+              ageInDays,
+              warning: null,
+            } satisfies ContestTrustMetadata["freshness"];
+          }
+
+          return {
+            status: "stale",
+            label: `${ageInDays}일 전 업데이트`,
+            ageInDays,
+            warning: `마지막 업데이트가 ${ageInDays}일 전입니다.`,
+          } satisfies ContestTrustMetadata["freshness"];
+        })();
+
+  const completenessWarnings = [
+    !contest.sourceUrl ? "수집 출처 링크가 아직 연결되지 않았습니다." : null,
+    !contest.applyUrl ? "신청 링크가 아직 정리되지 않았습니다." : null,
+    !contest.submissionFormat && (contest.submissionItems?.length ?? 0) === 0
+      ? "제출 형식 정보가 아직 충분하지 않습니다."
+      : null,
+    (contest.judgingCriteria?.length ?? 0) === 0 ? "심사 기준이 아직 구조화되지 않았습니다." : null,
+    (contest.stageSchedule?.length ?? 0) === 0 &&
+    !contest.startDate &&
+    !contest.deadline &&
+    !contest.eventDate
+      ? "일정 정보가 아직 충분하지 않습니다."
+      : null,
+    contest.prizeSummary && !contest.prizePoolKrw
+      ? "상금 요약은 있으나 정규화 금액이 없어 상금 비교 정확도가 낮을 수 있습니다."
+      : null,
+    contest.analysis.analysisStatus !== "completed"
+      ? `AI 분석 상태가 ${contest.analysis.analysisStatus}입니다.`
+      : null,
+  ].filter((warning): warning is string => Boolean(warning));
+
+  const completeness = {
+    status:
+      completenessWarnings.length === 0
+        ? "complete"
+        : completenessWarnings.length <= 2
+          ? "partial"
+          : "sparse",
+    warnings: completenessWarnings,
+  } satisfies ContestTrustMetadata["completeness"];
+
+  const warnings = [...(freshness.warning ? [freshness.warning] : []), ...completenessWarnings];
+
+  return {
+    source,
+    update: {
+      fetchedAt: input.fetchedAt,
+      updatedAt: input.updatedAt ?? null,
+    },
+    freshness,
+    completeness,
+    warnings,
+  };
+}
+
+function attachContestTrustMetadata(
+  contest: Contest,
+  input: {
+    sourceKind: ContestTrustMetadata["source"]["kind"];
+    fetchedAt: string;
+    updatedAt?: string | null;
+    sourceUrl?: string | null;
+  },
+): Contest {
+  return {
+    ...contest,
+    provenance: buildContestTrustMetadata(contest, input),
+  };
+}
+
+function buildMockContestDataset(fetchedAt: string) {
+  return mockContests.map((contest) =>
+    attachContestTrustMetadata(contest, {
+      sourceKind: "mock",
+      fetchedAt,
+      updatedAt: null,
+      sourceUrl: contest.sourceUrl ?? contest.url,
+    }),
+  );
+}
+
 function buildContestSearchIndex(contest: Contest) {
   return [
     contest.title,
@@ -449,9 +602,16 @@ function applyFilters(contests: Contest[], filters: ContestFilters) {
 
 const fetchContestDataset = cache(async () => {
   const supabase = getSupabaseClient();
+  const fetchedAt = new Date().toISOString();
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (!supabase) {
-    return mockContests;
+    if (isProduction) {
+      throw new Error("[supabase] Contest dataset unavailable: Supabase client is not configured.");
+    }
+
+    console.warn("[supabase] Using development mock contests because Supabase client is not configured.");
+    return buildMockContestDataset(fetchedAt);
   }
 
   try {
@@ -498,6 +658,7 @@ const fetchContestDataset = cache(async () => {
           view_count,
           apply_count,
           status,
+          updated_at,
           contest_badges (badge, reason),
           contest_ai_analysis (
             summary,
@@ -515,15 +676,30 @@ const fetchContestDataset = cache(async () => {
       .order("deadline", { ascending: true, nullsFirst: false });
 
     if (error) {
-      console.warn(`[supabase] Falling back to mock contests: ${error.message}`);
-      return mockContests;
+      if (isProduction) {
+        throw new Error(`[supabase] Contest dataset query failed: ${error.message}`);
+      }
+
+      console.warn(`[supabase] Using development mock contests after fetch error: ${error.message}`);
+      return buildMockContestDataset(fetchedAt);
     }
 
-    return ((data ?? []) as ContestRow[]).map(mapContestRow);
+    return ((data ?? []) as ContestRow[]).map((row) =>
+      attachContestTrustMetadata(mapContestRow(row), {
+        sourceKind: "database",
+        fetchedAt,
+        updatedAt: row.updated_at,
+        sourceUrl: row.source_url,
+      }),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.warn(`[supabase] Falling back to mock contests: ${message}`);
-    return mockContests;
+    if (isProduction) {
+      throw new Error(`[supabase] Contest dataset unavailable: ${message}`);
+    }
+
+    console.warn(`[supabase] Using development mock contests after fetch exception: ${message}`);
+    return buildMockContestDataset(fetchedAt);
   }
 });
 

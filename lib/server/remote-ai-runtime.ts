@@ -2,7 +2,16 @@ import "server-only";
 
 import { createHash, createHmac, randomUUID } from "node:crypto";
 
-import { canUseUpstashRedis, getCachedJson, releaseLock, setCachedJson, setLock } from "./upstash-redis";
+import {
+  canUseUpstashRedis,
+  getCachedJson,
+  getRemoteAiCircuitState,
+  markRemoteAiCircuitFailure,
+  releaseLock,
+  resetRemoteAiCircuitState,
+  setCachedJson,
+  setLock,
+} from "./upstash-redis";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_ATTEMPTS = 2;
@@ -42,11 +51,6 @@ type RemoteAiCallResult<TResult> = {
   requestId: string;
 };
 
-type CircuitState = {
-  failures: number;
-  openedUntil: number;
-};
-
 class RemoteAiHandledError extends Error {
   alreadyRecorded: boolean;
 
@@ -55,18 +59,6 @@ class RemoteAiHandledError extends Error {
     this.name = "RemoteAiHandledError";
     this.alreadyRecorded = alreadyRecorded;
   }
-}
-
-declare global {
-  var __aiContestRemoteCircuits: Map<string, CircuitState> | undefined;
-}
-
-function getCircuitRegistry() {
-  if (!globalThis.__aiContestRemoteCircuits) {
-    globalThis.__aiContestRemoteCircuits = new Map<string, CircuitState>();
-  }
-
-  return globalThis.__aiContestRemoteCircuits;
 }
 
 function base64UrlEncode(value: string) {
@@ -171,42 +163,6 @@ function isRetriableStatus(status: number) {
   return status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
-function getCircuitState(service: string) {
-  const registry = getCircuitRegistry();
-  const existing = registry.get(service);
-
-  if (existing && existing.openedUntil > 0 && existing.openedUntil <= Date.now()) {
-    registry.set(service, { failures: 0, openedUntil: 0 });
-    return registry.get(service)!;
-  }
-
-  if (existing) {
-    return existing;
-  }
-
-  const initial = { failures: 0, openedUntil: 0 };
-  registry.set(service, initial);
-  return initial;
-}
-
-function markRemoteAiFailure(service: string, config: RemoteAiConfig) {
-  const registry = getCircuitRegistry();
-  const current = getCircuitState(service);
-  const nextFailures = current.failures + 1;
-  const nextState: CircuitState = {
-    failures: nextFailures,
-    openedUntil:
-      nextFailures >= config.circuitFailureThreshold ? Date.now() + config.circuitCooldownMs : current.openedUntil,
-  };
-
-  registry.set(service, nextState);
-  return nextState;
-}
-
-function resetRemoteAiCircuit(service: string) {
-  getCircuitRegistry().set(service, { failures: 0, openedUntil: 0 });
-}
-
 function parseRemoteErrorDetail(body: unknown, fallback: string) {
   if (body && typeof body === "object" && "detail" in body) {
     const detail = body.detail;
@@ -293,7 +249,7 @@ export async function callRemoteAiService<TPayload, TResult>({
     throw new Error("Remote AI service is not configured.");
   }
 
-  const circuitState = getCircuitState(service);
+  const circuitState = await getRemoteAiCircuitState(service);
   const payloadHash = buildPayloadHash(payload);
   const cacheTtlSeconds = getServiceCacheTtlSeconds(service);
   const cacheKey = buildCacheKey(service, payloadHash);
@@ -398,7 +354,11 @@ export async function callRemoteAiService<TPayload, TResult>({
             continue;
           }
 
-          const nextCircuit = markRemoteAiFailure(service, config);
+          const nextCircuit = await markRemoteAiCircuitFailure(
+            service,
+            config.circuitFailureThreshold,
+            config.circuitCooldownMs,
+          );
 
           if (nextCircuit.openedUntil > Date.now()) {
             logRemoteAiEvent("warn", "circuit_tripped", service, requestId, {
@@ -412,7 +372,7 @@ export async function callRemoteAiService<TPayload, TResult>({
         }
 
         const json = (await response.json()) as TResult;
-        resetRemoteAiCircuit(service);
+        await resetRemoteAiCircuitState(service);
         logRemoteAiEvent("info", "request_success", service, requestId, {
           ...metadata,
           attempt,
@@ -455,7 +415,11 @@ export async function callRemoteAiService<TPayload, TResult>({
           continue;
         }
 
-        const nextCircuit = markRemoteAiFailure(service, config);
+        const nextCircuit = await markRemoteAiCircuitFailure(
+          service,
+          config.circuitFailureThreshold,
+          config.circuitCooldownMs,
+        );
 
         if (nextCircuit.openedUntil > Date.now()) {
           logRemoteAiEvent("warn", "circuit_tripped", service, requestId, {
