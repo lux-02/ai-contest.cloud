@@ -361,6 +361,11 @@ export function TeamSimulationDashboard({
     accessRole === "reviewer"
       ? "리뷰어 권한으로 팀 현황을 읽기 전용으로 보고 있습니다. 의견은 제출 워크스페이스에서 남길 수 있습니다."
       : "협업 멤버 권한으로 팀 현황을 함께 보고 있습니다. 실제 팀 변경은 owner가 진행합니다.";
+  const humanLeadLabel = canEditTeam ? viewerLabel : "워크스페이스 owner";
+  const humanLeadRoleLabel = canEditTeam ? "팀 리드 · 직접 판단하는 역할" : `${accessRoleLabel} · 읽기 전용 참여자`;
+  const humanLeadDescription = canEditTeam
+    ? "중요한 선택은 직접 하고, AI 팀원이 속도를 올려주는 구조로 진행됩니다."
+    : `${viewerLabel} 계정은 공유된 팀 현황을 보고 있습니다. 실제 판단과 팀 액션은 owner가 계속 담당합니다.`;
 
   const replaceActivityEvents = (nextEvents: TeamActivityEvent[]) => {
     activityCursorRef.current = nextEvents[0]?.sequence ?? activityCursorRef.current;
@@ -895,8 +900,14 @@ export function TeamSimulationDashboard({
               <article key={entry.id} className={cn("team-message-card", entry.authorType === "user" && "is-user", entry.authorType === "system" && "is-system")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">{entry.speakerName}</div>
-                    {entry.speakerRole ? <div className="mt-1 text-[11px] text-[var(--muted)]">{entry.speakerRole}</div> : null}
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      {entry.authorType === "user" && !canEditTeam ? "워크스페이스 owner" : entry.speakerName}
+                    </div>
+                    {entry.speakerRole ? (
+                      <div className="mt-1 text-[11px] text-[var(--muted)]">
+                        {entry.authorType === "user" && !canEditTeam ? "팀 리드" : entry.speakerRole}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-[11px] text-[var(--muted)]">{formatEventTime(entry.createdAt)}</div>
                 </div>
@@ -1017,11 +1028,11 @@ export function TeamSimulationDashboard({
           <div className="flex items-center gap-3">
             <div className="team-avatar">🙂</div>
             <div>
-              <div className="text-sm font-semibold text-[var(--foreground)]">{viewerLabel}</div>
-              <div className="mt-1 text-[11px] text-[var(--muted)]">팀 리드 · 직접 판단하는 역할</div>
+              <div className="text-sm font-semibold text-[var(--foreground)]">{humanLeadLabel}</div>
+              <div className="mt-1 text-[11px] text-[var(--muted)]">{humanLeadRoleLabel}</div>
             </div>
           </div>
-          <p className="mt-3 text-xs leading-6 text-[var(--muted)]">중요한 선택은 직접 하고, AI 팀원이 속도를 올려주는 구조로 진행됩니다.</p>
+          <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{humanLeadDescription}</p>
         </article>
 
         {activeMembers.map((member) => (
@@ -1049,7 +1060,7 @@ export function TeamSimulationDashboard({
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {member.isUserClaimed ? (
-                <span className="team-status-pill is-ready">내가 맡음</span>
+                <span className="team-status-pill is-ready">{canEditTeam ? "내가 맡음" : "owner가 맡음"}</span>
               ) : !canEditTeam ? (
                 <span className="team-status-pill">읽기 전용</span>
               ) : (
