@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { acceptContestWorkspaceInviteFromMyPageAction } from "@/app/my/actions";
 import { ContestCard } from "@/components/contest-card";
 import { getStrengthBasedContestRecommendations } from "@/lib/server/contest-recommendations";
 import {
@@ -591,8 +592,14 @@ function InviteInboxSection({ entries }: { entries: ContestWorkspaceInviteInboxE
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <Link href={`/invite/${entry.inviteToken}`} className="primary-button">
-                      초대 수락
+                    <form action={acceptContestWorkspaceInviteFromMyPageAction}>
+                      <input type="hidden" name="inviteToken" value={entry.inviteToken} />
+                      <button type="submit" className="primary-button">
+                        바로 수락하고 열기
+                      </button>
+                    </form>
+                    <Link href={`/invite/${entry.inviteToken}`} className="secondary-button">
+                      초대 상세
                     </Link>
                     <Link href={`/contests/${entry.contest.slug}`} className="secondary-button">
                       공모전 보기
