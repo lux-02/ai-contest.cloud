@@ -12,10 +12,12 @@ import { requireViewerUser } from "@/lib/server/viewer-auth";
 import {
   formatCategory,
   formatDate,
+  formatDeadlineLabel,
   formatDifficulty,
   formatOrganizerType,
   formatReminderLabel,
   formatTrackingStatus,
+  getDaysUntil,
 } from "@/lib/utils";
 import type {
   Contest,
@@ -27,6 +29,24 @@ import type {
   ContestTeamPreference,
   ContestTrackingState,
 } from "@/types/contest";
+
+const RECENT_SIGNAL_WINDOW_DAYS = 3;
+const DEADLINE_WARNING_WINDOW_DAYS = 7;
+
+function isRecentTimestamp(value?: string, windowDays = RECENT_SIGNAL_WINDOW_DAYS) {
+  if (!value) {
+    return false;
+  }
+
+  const now = Date.now();
+  const target = new Date(value).getTime();
+
+  if (Number.isNaN(target)) {
+    return false;
+  }
+
+  return now - target <= windowDays * 24 * 60 * 60 * 1000;
+}
 
 function TrackingSection({
   title,
@@ -225,6 +245,11 @@ type SharedWorkspaceEntry = ContestWorkspaceMembershipSummary & {
     reviewCount: number;
     readinessScore: number | null;
   };
+  attention: {
+    label: string;
+    detail: string;
+    tone: "success" | "warning" | "neutral";
+  } | null;
 };
 
 function buildSharedWorkspacePreview(snapshot: ContestWorkspaceSnapshot | null) {
@@ -258,7 +283,79 @@ function buildSharedWorkspacePreview(snapshot: ContestWorkspaceSnapshot | null) 
   return candidates[0] ?? null;
 }
 
+function buildSharedWorkspaceAttention(input: {
+  contest: Contest;
+  preview: SharedWorkspaceEntry["preview"];
+  stats: SharedWorkspaceEntry["stats"];
+}) {
+  if (input.stats.warningChecklistCount > 0) {
+    return {
+      label: "재확인 필요",
+      detail: `제출 전 다시 확인할 체크리스트 ${input.stats.warningChecklistCount}개`,
+      tone: "warning" as const,
+    };
+  }
+
+  if (input.preview?.label === "새 리뷰" && isRecentTimestamp(input.preview.updatedAt)) {
+    return {
+      label: "리뷰 확인",
+      detail: "새 피드백이 들어왔습니다.",
+      tone: "neutral" as const,
+    };
+  }
+
+  if (input.preview?.label === "AI 팀 활동" || input.preview?.label === "팀 액션") {
+    if (isRecentTimestamp(input.preview.updatedAt)) {
+      return {
+        label: "최근 활동",
+        detail: "팀 대시보드에 새 진행 상황이 있습니다.",
+        tone: "success" as const,
+      };
+    }
+  }
+
+  const daysUntilDeadline = getDaysUntil(input.contest.deadline);
+
+  if (daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= DEADLINE_WARNING_WINDOW_DAYS) {
+    return {
+      label: "마감 임박",
+      detail: formatDeadlineLabel(input.contest.deadline),
+      tone: "warning" as const,
+    };
+  }
+
+  return null;
+}
+
+function buildInviteAttention(entry: ContestWorkspaceInviteInboxEntry) {
+  const daysUntilDeadline = getDaysUntil(entry.contest.deadline);
+
+  if (daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= DEADLINE_WARNING_WINDOW_DAYS) {
+    return {
+      label: "마감 임박",
+      detail: formatDeadlineLabel(entry.contest.deadline),
+      tone: "warning" as const,
+    };
+  }
+
+  if (isRecentTimestamp(entry.createdAt)) {
+    return {
+      label: "새 초대",
+      detail: "최근에 도착한 워크스페이스 초대입니다.",
+      tone: "success" as const,
+    };
+  }
+
+  return {
+    label: "합류 가능",
+    detail: "지금 바로 수락해서 워크스페이스에 참여할 수 있습니다.",
+    tone: "neutral" as const,
+  };
+}
+
 function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }) {
+  const attentionCount = entries.filter((entry) => entry.attention).length;
+
   return (
     <section className="mt-10">
       <div className="flex items-center justify-between gap-3">
@@ -268,8 +365,15 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
             owner가 초대한 공모전 워크스페이스입니다. 여기서 바로 공동 작업 화면으로 다시 들어갈 수 있습니다.
           </p>
         </div>
-        <div className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
-          {entries.length}
+        <div className="flex flex-wrap items-center gap-2">
+          {attentionCount ? (
+            <div className="rounded-full border border-[rgba(217,119,6,0.24)] bg-[rgba(217,119,6,0.12)] px-3 py-1.5 text-sm font-semibold text-[rgb(255,211,146)]">
+              확인 필요 {attentionCount}
+            </div>
+          ) : null}
+          <div className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
+            {entries.length}
+          </div>
         </div>
       </div>
 
@@ -283,6 +387,19 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
                     <span className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 font-semibold text-[var(--success)]">
                       {entry.role}
                     </span>
+                    {entry.attention ? (
+                      <span
+                        className={`rounded-full border px-3 py-1.5 font-semibold ${
+                          entry.attention.tone === "warning"
+                            ? "border-[rgba(217,119,6,0.24)] bg-[rgba(217,119,6,0.12)] text-[rgb(255,211,146)]"
+                            : entry.attention.tone === "success"
+                              ? "border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] text-[var(--success)]"
+                              : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]"
+                        }`}
+                      >
+                        {entry.attention.label}
+                      </span>
+                    ) : null}
                     <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[var(--muted)]">
                       최근 업데이트 {formatDate(entry.updatedAt)}
                     </span>
@@ -324,6 +441,9 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
                       <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--muted)]">{entry.preview.detail}</p>
                     </div>
                   ) : null}
+                  {entry.attention ? (
+                    <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{entry.attention.detail}</p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -357,6 +477,8 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
 }
 
 function InviteInboxSection({ entries }: { entries: ContestWorkspaceInviteInboxEntry[] }) {
+  const recentCount = entries.filter((entry) => isRecentTimestamp(entry.createdAt)).length;
+
   return (
     <section className="mt-10">
       <div className="flex items-center justify-between gap-3">
@@ -366,40 +488,63 @@ function InviteInboxSection({ entries }: { entries: ContestWorkspaceInviteInboxE
             현재 로그인한 이메일로 도착한 워크스페이스 초대입니다. 메일을 놓쳤더라도 여기서 바로 합류할 수 있습니다.
           </p>
         </div>
-        <div className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
-          {entries.length}
+        <div className="flex flex-wrap items-center gap-2">
+          {recentCount ? (
+            <div className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 text-sm font-semibold text-[var(--success)]">
+              새 초대 {recentCount}
+            </div>
+          ) : null}
+          <div className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm font-semibold text-[var(--foreground)]">
+            {entries.length}
+          </div>
         </div>
       </div>
 
       {entries.length ? (
         <div className="mt-5 grid gap-5">
-          {entries.map((entry) => (
-            <div key={entry.inviteId} className="rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 font-semibold text-[var(--success)]">
-                      {entry.role}
-                    </span>
-                    <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[var(--muted)]">
-                      초대 생성 {formatDate(entry.createdAt)}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">{entry.contest.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{entry.contest.shortDescription}</p>
-                </div>
+          {entries.map((entry) => {
+            const attention = buildInviteAttention(entry);
 
-                <div className="flex flex-wrap gap-3">
-                  <Link href={`/invite/${entry.inviteToken}`} className="primary-button">
-                    초대 수락
-                  </Link>
-                  <Link href={`/contests/${entry.contest.slug}`} className="secondary-button">
-                    공모전 보기
-                  </Link>
+            return (
+              <div key={entry.inviteId} className="rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 font-semibold text-[var(--success)]">
+                        {entry.role}
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1.5 font-semibold ${
+                          attention.tone === "warning"
+                            ? "border-[rgba(217,119,6,0.24)] bg-[rgba(217,119,6,0.12)] text-[rgb(255,211,146)]"
+                            : attention.tone === "success"
+                              ? "border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] text-[var(--success)]"
+                              : "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]"
+                        }`}
+                      >
+                        {attention.label}
+                      </span>
+                      <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-[var(--muted)]">
+                        초대 생성 {formatDate(entry.createdAt)}
+                      </span>
+                    </div>
+                    <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">{entry.contest.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{entry.contest.shortDescription}</p>
+                    <p className="mt-3 text-xs leading-6 text-[var(--muted)]">{attention.detail}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={`/invite/${entry.inviteToken}`} className="primary-button">
+                      초대 수락
+                    </Link>
+                    <Link href={`/contests/${entry.contest.slug}`} className="secondary-button">
+                      공모전 보기
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
     </section>
@@ -416,19 +561,28 @@ export default async function MyPage() {
   const sharedWorkspaceEntries = await Promise.all(
     sharedWorkspaces.map(async (entry) => {
       const snapshot = await getContestWorkspaceSnapshot(entry.contest.id, entry.ideationSessionId, user.id);
+      const stats = {
+        readyChecklistCount: snapshot?.submissionPackage.checklist.filter((item) => item.state === "ready").length ?? 0,
+        warningChecklistCount: snapshot?.submissionPackage.checklist.filter((item) => item.state === "warning").length ?? 0,
+        reviewCount: snapshot?.reviewNotes.length ?? 0,
+        readinessScore: snapshot?.teamSnapshot?.teamSession.readinessScore ?? null,
+      };
+      const preview = buildSharedWorkspacePreview(snapshot);
 
       return {
         ...entry,
-        preview: buildSharedWorkspacePreview(snapshot),
-        stats: {
-          readyChecklistCount: snapshot?.submissionPackage.checklist.filter((item) => item.state === "ready").length ?? 0,
-          warningChecklistCount: snapshot?.submissionPackage.checklist.filter((item) => item.state === "warning").length ?? 0,
-          reviewCount: snapshot?.reviewNotes.length ?? 0,
-          readinessScore: snapshot?.teamSnapshot?.teamSession.readinessScore ?? null,
-        },
+        preview,
+        stats,
+        attention: buildSharedWorkspaceAttention({
+          contest: entry.contest,
+          preview,
+          stats,
+        }),
       } satisfies SharedWorkspaceEntry;
     }),
   );
+  const actionRequiredCount =
+    pendingInvites.length + sharedWorkspaceEntries.filter((entry) => entry.attention !== null).length;
   const grouped = groupTrackedContestsByStatus(entries);
   const recommendationSnapshot = await getStrengthBasedContestRecommendations(entries, user.id);
 
@@ -453,13 +607,14 @@ export default async function MyPage() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-5">
+        <div className="mt-8 grid gap-4 md:grid-cols-6">
           {[
             ["Saved", grouped.saved.length],
             ["Planning", grouped.planning.length],
             ["Applied", grouped.applied.length],
             ["Reminder On", grouped.reminders.length],
             ["Shared", sharedWorkspaces.length],
+            ["Needs Action", actionRequiredCount],
           ].map(([label, count]) => (
             <div key={label} className="hero-metric">
               <div className="text-3xl font-semibold tracking-[-0.04em]">{count}</div>
