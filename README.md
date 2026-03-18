@@ -102,6 +102,7 @@ The latest details always live in the app, and the same snapshot is also exporte
 | 2026-03-14 | [OpenAI Safety Sprint](https://ai-contest-cloud.vercel.app/contests/openai-safety-sprint) | OpenAI Builders | 약 7,250만원 | LLM / 에이전트, AI 인프라 / 시스템 |
 | 2026-03-16 | [Multimodal Studio Jam](https://ai-contest-cloud.vercel.app/contests/multimodal-studio-jam) | Creator Tools Collective | 약 2,175만원 | 멀티모달 AI, 생성형 AI |
 | 2026-03-21 | [Campus RAG League](https://ai-contest-cloud.vercel.app/contests/campus-rag-league) | Korea AI Student Network | 약 870만원 | LLM / 에이전트, 사회문제 해결 AI |
+| 2026-03-25 | [RoboOps Field Test](https://ai-contest-cloud.vercel.app/contests/roboops-field-test) | Autonomy Works | 약 1,740만원 | 로보틱스, AI 인프라 / 시스템 |
 
 ### 상금순
 총상금 규모가 큰 순서대로 상위 라인업을 모았습니다.

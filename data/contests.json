@@ -5,7 +5,8 @@
     "deadlineUrgent": [
       "openai-safety-sprint",
       "multimodal-studio-jam",
-      "campus-rag-league"
+      "campus-rag-league",
+      "roboops-field-test"
     ],
     "highPrize": [
       "openai-safety-sprint",
@@ -200,9 +201,10 @@
       ],
       "shortDescription": "현장 작업 로봇의 작업 계획과 복구 시나리오를 검증하는 로보틱스 운영 챌린지.",
       "featuredSections": [
+        "deadlineUrgent",
         "highPrize"
       ],
-      "featuredReason": "총상금 규모가 커서 상금순 추천 섹션에 포함된 대회"
+      "featuredReason": "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회"
     },
     {
       "id": "8923aea4-20f8-4f57-9892-a61872cc618b",
