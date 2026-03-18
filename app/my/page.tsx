@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ContestCard } from "@/components/contest-card";
 import { getStrengthBasedContestRecommendations } from "@/lib/server/contest-recommendations";
 import {
+  listOwnedContestWorkspaceSummariesForViewer,
   listContestWorkspaceMembershipsForViewer,
   listPendingContestWorkspaceInvitesForViewer,
 } from "@/lib/server/contest-workspace-access";
@@ -377,7 +378,30 @@ function buildInviteAttention(entry: ContestWorkspaceInviteInboxEntry) {
   };
 }
 
-function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }) {
+function sortWorkspaceEntries(entries: SharedWorkspaceEntry[]) {
+  return [...entries].sort((left, right) => {
+    const leftPriority = Number(Boolean(left.attention)) * 2 + Number(left.hasUnreadActivity);
+    const rightPriority = Number(Boolean(right.attention)) * 2 + Number(right.hasUnreadActivity);
+
+    if (leftPriority !== rightPriority) {
+      return rightPriority - leftPriority;
+    }
+
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  });
+}
+
+function WorkspaceSection({
+  title,
+  body,
+  emptyMessage,
+  entries,
+}: {
+  title: string;
+  body: string;
+  emptyMessage: string;
+  entries: SharedWorkspaceEntry[];
+}) {
   const attentionCount = entries.filter((entry) => entry.attention).length;
   const unreadCount = entries.filter((entry) => entry.hasUnreadActivity).length;
 
@@ -385,10 +409,8 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
     <section className="mt-10">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">공유 워크스페이스</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            owner가 초대한 공모전 워크스페이스입니다. 여기서 바로 공동 작업 화면으로 다시 들어갈 수 있습니다.
-          </p>
+          <h2 className="text-2xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{body}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {unreadCount ? (
@@ -504,7 +526,7 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
         </div>
       ) : (
         <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-5 py-6 text-sm leading-6 text-[var(--muted)]">
-          아직 초대받은 공유 워크스페이스가 없습니다.
+          {emptyMessage}
         </div>
       )}
     </section>
@@ -588,13 +610,16 @@ function InviteInboxSection({ entries }: { entries: ContestWorkspaceInviteInboxE
 
 export default async function MyPage() {
   const user = await requireViewerUser("/my");
-  const [entries, sharedWorkspaces, pendingInvites] = await Promise.all([
+  const [entries, ownedWorkspaces, sharedWorkspaces, pendingInvites] = await Promise.all([
     getTrackedContestsForViewer(),
+    listOwnedContestWorkspaceSummariesForViewer(user.id),
     listContestWorkspaceMembershipsForViewer(user.id),
     user.email ? listPendingContestWorkspaceInvitesForViewer(user.email) : Promise.resolve([]),
   ]);
-  const sharedWorkspaceEntries = await Promise.all(
-    sharedWorkspaces.map(async (entry) => {
+
+  async function buildWorkspaceEntries(entries: ContestWorkspaceMembershipSummary[]) {
+    const resolvedEntries = await Promise.all(
+      entries.map(async (entry) => {
       const snapshot = await getContestWorkspaceSnapshot(entry.contest.id, entry.ideationSessionId, user.id);
       const stats = {
         readyChecklistCount: snapshot?.submissionPackage.checklist.filter((item) => item.state === "ready").length ?? 0,
@@ -620,10 +645,21 @@ export default async function MyPage() {
           hasUnreadActivity,
         }),
       } satisfies SharedWorkspaceEntry;
-    }),
-  );
+      }),
+    );
+
+    return sortWorkspaceEntries(resolvedEntries);
+  }
+
+  const [ownedWorkspaceEntries, sharedWorkspaceEntries] = await Promise.all([
+    buildWorkspaceEntries(ownedWorkspaces),
+    buildWorkspaceEntries(sharedWorkspaces),
+  ]);
+
   const actionRequiredCount =
-    pendingInvites.length + sharedWorkspaceEntries.filter((entry) => entry.attention !== null).length;
+    pendingInvites.length +
+    ownedWorkspaceEntries.filter((entry) => entry.attention !== null).length +
+    sharedWorkspaceEntries.filter((entry) => entry.attention !== null).length;
   const grouped = groupTrackedContestsByStatus(entries);
   const recommendationSnapshot = await getStrengthBasedContestRecommendations(entries, user.id);
 
@@ -648,12 +684,13 @@ export default async function MyPage() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-6">
+        <div className="mt-8 grid gap-4 md:grid-cols-7">
           {[
             ["Saved", grouped.saved.length],
             ["Planning", grouped.planning.length],
             ["Applied", grouped.applied.length],
             ["Reminder On", grouped.reminders.length],
+            ["Owned", ownedWorkspaces.length],
             ["Shared", sharedWorkspaces.length],
             ["Needs Action", actionRequiredCount],
           ].map(([label, count]) => (
@@ -666,7 +703,18 @@ export default async function MyPage() {
       </section>
 
       <InviteInboxSection entries={pendingInvites} />
-      <SharedWorkspaceSection entries={sharedWorkspaceEntries} />
+      <WorkspaceSection
+        title="내 워크스페이스"
+        body="내가 직접 준비를 시작한 공모전 워크스페이스입니다. 협업 초대와 팀 진행 상황까지 포함해 다시 들어갈 수 있습니다."
+        emptyMessage="아직 직접 시작한 워크스페이스가 없습니다. Planning 상태의 공모전에서 전략 분석과 아이데이션을 시작해보세요."
+        entries={ownedWorkspaceEntries}
+      />
+      <WorkspaceSection
+        title="공유 워크스페이스"
+        body="owner가 초대한 공모전 워크스페이스입니다. 여기서 바로 공동 작업 화면으로 다시 들어갈 수 있습니다."
+        emptyMessage="아직 초대받은 공유 워크스페이스가 없습니다."
+        entries={sharedWorkspaceEntries}
+      />
       <RecommendationSection snapshot={recommendationSnapshot} />
       <TrackingSection title="Saved" body="일단 눈여겨보는 대회들입니다." entries={grouped.saved} />
       <TrackingSection title="Planning" body="준비를 시작했고 일정 조율이 필요한 대회들입니다." entries={grouped.planning} />

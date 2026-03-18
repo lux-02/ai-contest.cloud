@@ -47,6 +47,13 @@ type ContestWorkspaceMemberViewRow = {
   last_viewed_at: string;
 };
 
+type ContestWorkspaceOwnerSessionRow = {
+  contest_id: string;
+  id: string;
+  user_id: string;
+  updated_at: string;
+};
+
 function getAppBaseUrl() {
   return (process.env.APP_BASE_URL ?? "https://www.ai-contest.cloud").replace(/\/$/, "");
 }
@@ -61,6 +68,17 @@ function createInviteToken() {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+async function listWorkspaceViewMapForViewer(supabase: NonNullable<ReturnType<typeof getSupabaseServiceClient>>, viewerUserId: string) {
+  const { data } = await supabase
+    .from("contest_workspace_member_views")
+    .select("ideation_session_id, last_viewed_at")
+    .eq("viewer_user_id", viewerUserId);
+
+  return new Map(
+    ((data as ContestWorkspaceMemberViewRow[] | null) ?? []).map((row) => [row.ideation_session_id, row.last_viewed_at]),
+  );
 }
 
 function buildAccess(input: {
@@ -239,16 +257,9 @@ export async function listContestWorkspaceMembershipsForViewer(viewerUserId: str
     return [] satisfies ContestWorkspaceMembershipSummary[];
   }
 
-  const { data: viewData } = await supabase
-    .from("contest_workspace_member_views")
-    .select("ideation_session_id, last_viewed_at")
-    .eq("viewer_user_id", viewerUserId);
-
   const contests = await getContests();
   const contestMap = new Map(contests.map((contest) => [contest.id, contest]));
-  const viewMap = new Map(
-    ((viewData as ContestWorkspaceMemberViewRow[] | null) ?? []).map((row) => [row.ideation_session_id, row.last_viewed_at]),
-  );
+  const viewMap = await listWorkspaceViewMapForViewer(supabase, viewerUserId);
 
   return (data as Array<{
     contest_id: string;
@@ -271,6 +282,47 @@ export async function listContestWorkspaceMembershipsForViewer(viewerUserId: str
         role: row.role,
         updatedAt: row.updated_at,
         lastViewedAt: viewMap.get(row.ideation_session_id) ?? null,
+      } satisfies ContestWorkspaceMembershipSummary;
+    })
+    .flatMap((entry) => (entry ? [entry] : []));
+}
+
+export async function listOwnedContestWorkspaceSummariesForViewer(viewerUserId: string) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return [] satisfies ContestWorkspaceMembershipSummary[];
+  }
+
+  const { data, error } = await supabase
+    .from("contest_ideation_sessions")
+    .select("contest_id, id, user_id, updated_at")
+    .eq("user_id", viewerUserId)
+    .order("updated_at", { ascending: false });
+
+  if (error || !data) {
+    return [] satisfies ContestWorkspaceMembershipSummary[];
+  }
+
+  const contests = await getContests();
+  const contestMap = new Map(contests.map((contest) => [contest.id, contest]));
+  const viewMap = await listWorkspaceViewMapForViewer(supabase, viewerUserId);
+
+  return (data as ContestWorkspaceOwnerSessionRow[])
+    .map((row) => {
+      const contest = contestMap.get(row.contest_id);
+
+      if (!contest) {
+        return null;
+      }
+
+      return {
+        contest,
+        ideationSessionId: row.id,
+        ownerUserId: row.user_id,
+        role: "owner",
+        updatedAt: row.updated_at,
+        lastViewedAt: viewMap.get(row.id) ?? null,
       } satisfies ContestWorkspaceMembershipSummary;
     })
     .flatMap((entry) => (entry ? [entry] : []));
