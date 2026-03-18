@@ -1,0 +1,28 @@
+name: Contest Reminder Emails
+
+on:
+  schedule:
+    - cron: "5 23 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum reminder emails to process"
+        required: false
+        type: string
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder drain
+        env:
+          REMINDER_JOB_RUNNER_BASE_URL: ${{ secrets.REMINDER_JOB_RUNNER_BASE_URL }}
+          REMINDER_JOB_RUNNER_SECRET: ${{ secrets.REMINDER_JOB_RUNNER_SECRET }}
+          REMINDER_LIMIT: ${{ github.event.inputs.limit || '20' }}
+        run: |
+          curl -fsS \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-reminder-job-secret: ${REMINDER_JOB_RUNNER_SECRET}" \
+            "${REMINDER_JOB_RUNNER_BASE_URL%/}/api/internal/contest-reminders/drain" \
+            -d "{\"limit\": ${REMINDER_LIMIT}}"

@@ -101,6 +101,7 @@ export function ContestPreparationExperience({
   const nextPath = `/contests/${contest.slug}`;
   const primaryLabel = buildPrimaryLabel(session);
   const teamHref = session ? `/team/${contest.id}?session=${session.id}` : "#";
+  const workspaceHref = session ? `/workspace/${contest.id}?session=${session.id}` : "#";
   const loginActionLabel = getViewerContinueActionLabel(nextPath);
   const returnDescription = getViewerReturnDescription(nextPath);
   const ideationStatus = buildIdeationStatus(session);
@@ -217,10 +218,16 @@ export function ContestPreparationExperience({
             </button>
 
             {session?.status === "selected" ? (
-              <Link href={teamHref} className="secondary-button flex-1">
-                <FaUsers className="h-3.5 w-3.5" aria-hidden />
-                AI 팀 빌딩 시작하기
-              </Link>
+              <>
+                <Link href={teamHref} className="secondary-button flex-1">
+                  <FaUsers className="h-3.5 w-3.5" aria-hidden />
+                  AI 팀 빌딩 시작하기
+                </Link>
+                <Link href={workspaceHref} className="secondary-button flex-1">
+                  <FaCheck className="h-3.5 w-3.5" aria-hidden />
+                  프로젝트 워크스페이스
+                </Link>
+              </>
             ) : (
               <button type="button" className="secondary-button flex-1" disabled>
                 <FaCheck className="h-3.5 w-3.5" aria-hidden />
