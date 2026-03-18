@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 
 import { createTeamJob, drainTeamTurnJobs, findReusableTeamJob } from "@/lib/server/team-generation-jobs";
-import { getTeamApiContext } from "@/lib/server/team-api";
+import { getTeamWorkspaceWriteApiContext } from "@/lib/server/team-api";
 import type { TeamAsyncJobResponse } from "@/types/contest";
 
 export const runtime = "nodejs";
@@ -15,12 +15,6 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { contestId } = await context.params;
-    const resolved = await getTeamApiContext(contestId);
-
-    if ("response" in resolved) {
-      return resolved.response;
-    }
-
     const body = (await request.json().catch(() => ({}))) as {
       teamSessionId?: string;
       message?: string;
@@ -35,11 +29,21 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "보낼 내용이 필요합니다." }, { status: 400 });
     }
 
+    const resolved = await getTeamWorkspaceWriteApiContext({
+      contestId,
+      teamSessionId: body.teamSessionId,
+    });
+
+    if (!("actor" in resolved)) {
+      return resolved.response;
+    }
+
     const input = {
       kind: "turn" as const,
       contestId,
       teamSessionId: body.teamSessionId,
-      userId: resolved.user.id,
+      userId: resolved.access.ownerUserId,
+      actor: resolved.actor,
       message: body.message,
       quickAction: body.quickAction,
     };

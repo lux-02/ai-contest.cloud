@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { drainTeamBootstrapJobs, drainTeamTurnJobs, getTeamJobById } from "@/lib/server/team-generation-jobs";
-import { getTeamApiContext } from "@/lib/server/team-api";
+import { drainTeamBootstrapJobs, drainTeamTurnJobs, getTeamJobById, getTeamJobInputById } from "@/lib/server/team-generation-jobs";
+import { getTeamApiContext, getTeamWorkspaceApiContext } from "@/lib/server/team-api";
 import type { TeamAsyncJobKind, TeamAsyncJobResponse } from "@/types/contest";
 
 export const runtime = "nodejs";
@@ -34,6 +34,22 @@ export async function GET(request: Request, context: RouteContext) {
 
     if (!kind) {
       return NextResponse.json({ error: "job kind 정보가 필요합니다." }, { status: 400 });
+    }
+
+    const input = await getTeamJobInputById(jobId, kind, contestId);
+
+    if (!input) {
+      return NextResponse.json({ error: "팀 작업 job을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    const access = await getTeamWorkspaceApiContext({
+      contestId,
+      ideationSessionId: input.kind === "bootstrap" ? input.ideationSessionId : null,
+      teamSessionId: input.kind === "turn" ? input.teamSessionId : null,
+    });
+
+    if (!("access" in access)) {
+      return access.response;
     }
 
     let job = await getTeamJobById(jobId, kind, contestId);

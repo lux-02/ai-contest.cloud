@@ -5,8 +5,11 @@ import { revalidatePath } from "next/cache";
 import { notifyContestWorkspaceInvite } from "@/lib/server/contest-invite-notifications";
 import {
   createContestWorkspaceInvite,
+  getContestWorkspaceInviteById,
+  removeContestWorkspaceCollaborator,
   resolveContestWorkspaceAccess,
   revokeContestWorkspaceInvite,
+  updateContestWorkspaceCollaboratorRole,
 } from "@/lib/server/contest-workspace-access";
 import {
   createContestWorkspaceReviewAsOwner,
@@ -198,6 +201,102 @@ export async function revokeContestWorkspaceInviteAction(formData: FormData) {
     contestId,
     ideationSessionId,
     ownerUserId: access.ownerUserId,
+  });
+
+  revalidatePath(nextPath);
+}
+
+export async function removeContestWorkspaceCollaboratorAction(formData: FormData) {
+  const collaboratorId = String(formData.get("collaboratorId") ?? "");
+  const contestId = String(formData.get("contestId") ?? "");
+  const ideationSessionId = String(formData.get("ideationSessionId") ?? "");
+  const nextPath = sanitizeViewerNextPath(String(formData.get("next") ?? "/my"));
+  const user = await requireViewerUser(nextPath);
+
+  if (!collaboratorId || !contestId || !ideationSessionId) {
+    return;
+  }
+
+  const access = await resolveContestWorkspaceAccess(contestId, ideationSessionId, user.id);
+
+  if (!access?.canManage) {
+    return;
+  }
+
+  await removeContestWorkspaceCollaborator({
+    collaboratorId,
+    contestId,
+    ideationSessionId,
+    ownerUserId: access.ownerUserId,
+  });
+
+  revalidatePath(nextPath);
+}
+
+export async function resendContestWorkspaceInviteAction(formData: FormData) {
+  const inviteId = String(formData.get("inviteId") ?? "");
+  const contestId = String(formData.get("contestId") ?? "");
+  const ideationSessionId = String(formData.get("ideationSessionId") ?? "");
+  const nextPath = sanitizeViewerNextPath(String(formData.get("next") ?? "/my"));
+  const user = await requireViewerUser(nextPath);
+
+  if (!inviteId || !contestId || !ideationSessionId) {
+    return;
+  }
+
+  const access = await resolveContestWorkspaceAccess(contestId, ideationSessionId, user.id);
+
+  if (!access?.canManage) {
+    return;
+  }
+
+  const invite = await getContestWorkspaceInviteById({
+    inviteId,
+    contestId,
+    ideationSessionId,
+    ownerUserId: access.ownerUserId,
+  });
+
+  if (!invite || invite.status !== "pending") {
+    return;
+  }
+
+  await notifyContestWorkspaceInvite({
+    inviteId: invite.id,
+    ownerUserId: invite.ownerUserId,
+    contestId: invite.contestId,
+    inviteeEmail: invite.inviteeEmail,
+    role: invite.role,
+    inviteUrl: invite.inviteUrl,
+  });
+
+  revalidatePath(nextPath);
+}
+
+export async function updateContestWorkspaceCollaboratorRoleAction(formData: FormData) {
+  const collaboratorId = String(formData.get("collaboratorId") ?? "");
+  const contestId = String(formData.get("contestId") ?? "");
+  const ideationSessionId = String(formData.get("ideationSessionId") ?? "");
+  const role = String(formData.get("role") ?? "");
+  const nextPath = sanitizeViewerNextPath(String(formData.get("next") ?? "/my"));
+  const user = await requireViewerUser(nextPath);
+
+  if (!collaboratorId || !contestId || !ideationSessionId || (role !== "member" && role !== "reviewer")) {
+    return;
+  }
+
+  const access = await resolveContestWorkspaceAccess(contestId, ideationSessionId, user.id);
+
+  if (!access?.canManage) {
+    return;
+  }
+
+  await updateContestWorkspaceCollaboratorRole({
+    collaboratorId,
+    contestId,
+    ideationSessionId,
+    ownerUserId: access.ownerUserId,
+    role,
   });
 
   revalidatePath(nextPath);

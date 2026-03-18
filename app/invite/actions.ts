@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { notifyContestWorkspaceOwnerOfAcceptedInvite } from "@/lib/server/contest-collaborator-notifications";
 import { acceptContestWorkspaceInvite, getContestWorkspaceInviteByToken } from "@/lib/server/contest-workspace-access";
 import { requireViewerUser } from "@/lib/server/viewer-auth";
 
@@ -39,6 +40,16 @@ export async function acceptContestWorkspaceInviteAction(formData: FormData) {
 
     redirect(`/invite/${inviteToken}?error=invalid`);
   }
+
+  await notifyContestWorkspaceOwnerOfAcceptedInvite({
+    inviteId: invite.id,
+    ownerUserId: invite.ownerUserId,
+    contestId: invite.contestId,
+    ideationSessionId: invite.ideationSessionId,
+    collaboratorUserId: user.id,
+    collaboratorEmail: user.email,
+    role: invite.role,
+  });
 
   redirect(`/workspace/${invite.contestId}?session=${invite.ideationSessionId}`);
 }

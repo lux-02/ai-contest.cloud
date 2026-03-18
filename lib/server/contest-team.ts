@@ -81,6 +81,9 @@ type TeamMessageRow = QueryResultRow & {
   id: string;
   team_session_id: string;
   author_type: TeamMessage["authorType"];
+  author_user_id: string | null;
+  author_label: string | null;
+  author_role: string | null;
   member_id: string | null;
   body: string;
   message_kind: TeamMessage["messageKind"];
@@ -139,6 +142,12 @@ type TeamActivityEventRow = QueryResultRow & {
 type TeamAccessContext = {
   contest: Contest;
   handoff: ContestTeamHandoff;
+};
+
+type TeamHumanActor = {
+  userId: string;
+  label: string;
+  roleLabel: string;
 };
 
 function parseStringArray(value: unknown) {
@@ -224,8 +233,8 @@ function buildTeamMember(row: TeamMemberRow): TeamMember {
 function buildMessageSpeakerName(row: TeamMessageRow, membersById: Map<string, TeamMember>) {
   if (row.author_type === "user") {
     return {
-      speakerName: "나",
-      speakerRole: "팀 리드",
+      speakerName: row.author_label?.trim() || "팀 리드",
+      speakerRole: row.author_role?.trim() || "인간 협업자",
     };
   }
 
@@ -250,6 +259,7 @@ function buildTeamMessage(row: TeamMessageRow, membersById: Map<string, TeamMemb
   return {
     id: row.id,
     authorType: row.author_type,
+    authorUserId: row.author_user_id,
     memberId: row.member_id,
     speakerName: speaker.speakerName,
     speakerRole: speaker.speakerRole,
@@ -575,6 +585,9 @@ async function insertTeamMessages(
   teamSessionId: string,
   entries: Array<{
     authorType: TeamMessage["authorType"];
+    authorUserId?: string | null;
+    authorLabel?: string | null;
+    authorRole?: string | null;
     memberId?: string | null;
     body: string;
     messageKind: TeamMessage["messageKind"];
@@ -586,13 +599,25 @@ async function insertTeamMessages(
         insert into public.team_messages (
           team_session_id,
           author_type,
+          author_user_id,
+          author_label,
+          author_role,
           member_id,
           body,
           message_kind
         )
-        values ($1, $2, $3, $4, $5)
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
       `,
-      [teamSessionId, entry.authorType, entry.memberId ?? null, entry.body, entry.messageKind],
+      [
+        teamSessionId,
+        entry.authorType,
+        entry.authorUserId ?? null,
+        entry.authorLabel ?? null,
+        entry.authorRole ?? null,
+        entry.memberId ?? null,
+        entry.body,
+        entry.messageKind,
+      ],
     );
   }
 }
@@ -1176,6 +1201,7 @@ export async function regenerateContestTeamSession(input: {
   contestId: string;
   teamSessionId: string;
   userId: string;
+  actor?: TeamHumanActor | null;
   mode: "single" | "all" | "claim";
   memberId?: string | null;
 }) {
@@ -1226,18 +1252,18 @@ export async function regenerateContestTeamSession(input: {
       await insertTeamMessages(client, row.id, [
         {
           authorType: "system",
-          body: `${target.role} 역할은 직접 맡기로 표시했어요.`,
+          body: `${input.actor?.label ?? "팀 협업자"}님이 ${target.role} 역할을 직접 맡기로 표시했어요.`,
           messageKind: "summary",
         },
       ]);
       await insertTeamActivityEvent(client, row.id, {
         title: "역할 직접 맡기기 완료",
-        detail: `${target.role} 역할을 직접 맡는 것으로 반영했어요.`,
+        detail: `${input.actor?.label ?? "팀 협업자"}님이 ${target.role} 역할을 직접 맡는 것으로 반영했어요.`,
         state: "completed",
         source: "user",
         actorMemberId: target.id,
-        actorLabel: "나",
-        actorRole: "팀 리드",
+        actorLabel: input.actor?.label ?? "팀 협업자",
+        actorRole: input.actor?.roleLabel ?? "인간 협업자",
       });
 
     const refreshedRowAfterMeta = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
@@ -1253,7 +1279,7 @@ export async function regenerateContestTeamSession(input: {
         teamSession,
         handoff: access.handoff,
         kickoffOptions: teamSession.kickoffOptions,
-        coachSummary: `${target.role} 역할은 이제 직접 챙기는 걸로 반영됐어요.`,
+        coachSummary: `${target.role} 역할은 이제 ${input.actor?.label ?? "사람 팀원"}이 직접 챙기는 걸로 반영됐어요.`,
         toast: `${target.role} 역할을 직접 맡기로 표시했어요.`,
       } satisfies TeamSimulationTurnResponse;
     }
@@ -1682,6 +1708,7 @@ export async function simulateContestTeamTurn(input: {
   contestId: string;
   teamSessionId: string;
   userId: string;
+  actor?: TeamHumanActor | null;
   message?: string | null;
   quickAction?: string | null;
 }) {
@@ -1717,6 +1744,9 @@ export async function simulateContestTeamTurn(input: {
         await insertTeamMessages(client, row.id, [
           {
             authorType: "user",
+            authorUserId: input.actor?.userId ?? null,
+            authorLabel: input.actor?.label ?? "팀 협업자",
+            authorRole: input.actor?.roleLabel ?? "인간 협업자",
             body: kickoffOption.label,
             messageKind: "chat",
           },
@@ -1737,10 +1767,26 @@ export async function simulateContestTeamTurn(input: {
       await insertTeamMessages(client, row.id, [
         {
           authorType: "user",
+          authorUserId: input.actor?.userId ?? null,
+          authorLabel: input.actor?.label ?? "팀 협업자",
+          authorRole: input.actor?.roleLabel ?? "인간 협업자",
           body: input.message.trim(),
           messageKind: "chat",
         },
       ]);
+    }
+
+    if (input.quickAction || input.message?.trim()) {
+      await insertTeamActivityEvent(client, row.id, {
+        title: input.quickAction ? "킥오프 방향 선택" : "팀 메시지 추가",
+        detail: input.quickAction
+          ? `${input.actor?.label ?? "팀 협업자"}님이 ${quickActionText ?? "첫 방향"}을 선택했어요.`
+          : `${input.actor?.label ?? "팀 협업자"}님이 팀에 새 메시지를 남겼어요.`,
+        state: "completed",
+        source: "user",
+        actorLabel: input.actor?.label ?? "팀 협업자",
+        actorRole: input.actor?.roleLabel ?? "인간 협업자",
+      });
     }
 
     const refreshedBeforeRemote = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
@@ -1925,6 +1971,7 @@ export async function updateContestTeamTask(input: {
   contestId: string;
   teamSessionId: string;
   userId: string;
+  actor?: TeamHumanActor | null;
   action: "assign" | "move" | "complete";
   taskId: string;
   assigneeMemberId?: string | null;
@@ -2018,12 +2065,12 @@ export async function updateContestTeamTask(input: {
       title: input.action === "complete" ? "태스크 완료 반영" : "태스크 상태 업데이트",
       detail:
         input.action === "complete"
-          ? `${task.title} 작업을 완료로 반영했어요.`
-          : `${task.title} 작업 흐름을 업데이트했어요.`,
+          ? `${input.actor?.label ?? "팀 협업자"}님이 ${task.title} 작업을 완료로 반영했어요.`
+          : `${input.actor?.label ?? "팀 협업자"}님이 ${task.title} 작업 흐름을 업데이트했어요.`,
       state: "completed",
       source: "user",
-      actorLabel: "나",
-      actorRole: "팀 리드",
+      actorLabel: input.actor?.label ?? "팀 협업자",
+      actorRole: input.actor?.roleLabel ?? "인간 협업자",
     });
 
     const refreshedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
@@ -2066,6 +2113,7 @@ export async function createContestTeamArtifact(input: {
   contestId: string;
   teamSessionId: string;
   userId: string;
+  actor?: TeamHumanActor | null;
   artifactType: TeamArtifact["artifactType"];
   title: string;
   summary: string;
@@ -2110,11 +2158,11 @@ export async function createContestTeamArtifact(input: {
 
     await insertTeamActivityEvent(client, row.id, {
       title: "작업물 카드 추가",
-      detail: `${input.title} 작업물을 팀 작업 흐름에 추가했어요.`,
+      detail: `${input.actor?.label ?? "팀 협업자"}님이 ${input.title} 작업물을 팀 작업 흐름에 추가했어요.`,
       state: "completed",
       source: "user",
-      actorLabel: "나",
-      actorRole: "팀 리드",
+      actorLabel: input.actor?.label ?? "팀 협업자",
+      actorRole: input.actor?.roleLabel ?? "인간 협업자",
     });
 
     const refreshedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);
@@ -2157,6 +2205,7 @@ export async function completeContestTeamSession(input: {
   contestId: string;
   teamSessionId: string;
   userId: string;
+  actor?: TeamHumanActor | null;
 }) {
   const pool = getDbPool();
   const client = await pool.connect();
@@ -2188,11 +2237,11 @@ export async function completeContestTeamSession(input: {
     ]);
     await insertTeamActivityEvent(client, row.id, {
       title: "팀 준비 세션 완료",
-      detail: "이번 공모전 준비 세션을 마감 상태로 표시했어요.",
+      detail: `${input.actor?.label ?? "팀 협업자"}님이 이번 공모전 준비 세션을 마감 상태로 표시했어요.`,
       state: "completed",
-      source: "system",
-      actorLabel: "팀 코치",
-      actorRole: "시스템",
+      source: "user",
+      actorLabel: input.actor?.label ?? "팀 협업자",
+      actorRole: input.actor?.roleLabel ?? "인간 협업자",
     });
 
     const updatedRow = await getTeamSessionRowById(client, row.id, input.contestId, input.userId);

@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 
 import { getTeamSessionSnapshot } from "@/lib/server/contest-team";
 import { createTeamJob, drainTeamBootstrapJobs, findReusableTeamJob } from "@/lib/server/team-generation-jobs";
-import { getTeamApiContext } from "@/lib/server/team-api";
+import { getTeamWorkspaceWriteApiContext } from "@/lib/server/team-api";
 import type { TeamAsyncJobResponse } from "@/types/contest";
 
 export const runtime = "nodejs";
@@ -16,12 +16,6 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { contestId } = await context.params;
-    const resolved = await getTeamApiContext(contestId);
-
-    if ("response" in resolved) {
-      return resolved.response;
-    }
-
     const body = (await request.json().catch(() => ({}))) as {
       ideationSessionId?: string;
     };
@@ -30,7 +24,16 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "ideation session 정보가 필요합니다." }, { status: 400 });
     }
 
-    const existing = await getTeamSessionSnapshot(contestId, body.ideationSessionId, resolved.user.id);
+    const resolved = await getTeamWorkspaceWriteApiContext({
+      contestId,
+      ideationSessionId: body.ideationSessionId,
+    });
+
+    if (!("actor" in resolved)) {
+      return resolved.response;
+    }
+
+    const existing = await getTeamSessionSnapshot(contestId, body.ideationSessionId, resolved.access.ownerUserId);
 
     if (existing) {
       return NextResponse.json({
@@ -43,7 +46,8 @@ export async function POST(request: Request, context: RouteContext) {
       kind: "bootstrap" as const,
       contestId,
       ideationSessionId: body.ideationSessionId,
-      userId: resolved.user.id,
+      userId: resolved.access.ownerUserId,
+      actor: resolved.actor,
     };
 
     const reusableJob = await findReusableTeamJob(input, contestId);

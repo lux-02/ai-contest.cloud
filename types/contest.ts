@@ -387,6 +387,7 @@ export interface ContestWorkspaceShareLink {
 
 export type ContestWorkspaceAccessRole = "owner" | "member" | "reviewer";
 export type ContestWorkspaceInviteStatus = "pending" | "accepted" | "revoked";
+export type ContestWorkspaceInviteDeliveryStatus = "sent" | "failed" | "skipped";
 
 export interface ContestWorkspaceAccess {
   viewerUserId: string;
@@ -425,6 +426,34 @@ export interface ContestWorkspaceInvite {
   updatedAt?: string;
   acceptedAt?: string | null;
   acceptedByUserId?: string | null;
+}
+
+export interface ContestWorkspaceInviteDelivery {
+  id: string;
+  inviteId: string;
+  ownerUserId: string;
+  inviteeEmail: string;
+  provider: string;
+  providerMessageId?: string | null;
+  status: ContestWorkspaceInviteDeliveryStatus;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ContestWorkspaceCollaboratorNotificationDelivery {
+  id: string;
+  inviteId: string;
+  ownerUserId: string;
+  contestId: string;
+  collaboratorUserId: string;
+  collaboratorEmail: string;
+  provider: string;
+  providerMessageId?: string | null;
+  status: ContestWorkspaceInviteDeliveryStatus;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export type StrategyLabJobStatus = "queued" | "running" | "completed" | "failed";
@@ -593,6 +622,7 @@ export interface TeamMember {
 export interface TeamMessage {
   id: string;
   authorType: "user" | "ai" | "system";
+  authorUserId?: string | null;
   memberId?: string | null;
   speakerName: string;
   speakerRole?: string | null;

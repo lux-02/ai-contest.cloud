@@ -2,10 +2,12 @@ import "server-only";
 
 import { getContestById } from "@/lib/queries";
 import { getSupabaseServiceClient } from "@/lib/server/supabase";
+import type { ContestWorkspaceInviteDelivery } from "@/types/contest";
 
 type InviteDeliveryStatus = "sent" | "failed" | "skipped";
 
 type InviteDeliveryLog = {
+  id?: string;
   inviteId: string;
   ownerUserId: string;
   inviteeEmail: string;
@@ -49,6 +51,79 @@ async function insertInviteDeliveryLog(entry: InviteDeliveryLog) {
     error_message: entry.errorMessage ?? null,
     metadata: entry.metadata ?? {},
   });
+}
+
+function normalizeInviteDelivery(row: {
+  id: string;
+  invite_id: string;
+  owner_user_id: string;
+  invitee_email: string;
+  provider: string;
+  provider_message_id: string | null;
+  status: "sent" | "failed" | "skipped";
+  error_message: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}): ContestWorkspaceInviteDelivery {
+  return {
+    id: row.id,
+    inviteId: row.invite_id,
+    ownerUserId: row.owner_user_id,
+    inviteeEmail: row.invitee_email,
+    provider: row.provider,
+    providerMessageId: row.provider_message_id,
+    status: row.status,
+    errorMessage: row.error_message,
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+  };
+}
+
+export async function listLatestContestWorkspaceInviteDeliveries(input: {
+  ownerUserId: string;
+  inviteIds: string[];
+}) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase || input.inviteIds.length === 0) {
+    return new Map<string, ContestWorkspaceInviteDelivery>();
+  }
+
+  const { data, error } = await supabase
+    .from("contest_workspace_invite_deliveries")
+    .select(
+      "id, invite_id, owner_user_id, invitee_email, provider, provider_message_id, status, error_message, metadata, created_at",
+    )
+    .eq("owner_user_id", input.ownerUserId)
+    .in("invite_id", input.inviteIds)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    return new Map<string, ContestWorkspaceInviteDelivery>();
+  }
+
+  const latestByInviteId = new Map<string, ContestWorkspaceInviteDelivery>();
+
+  for (const row of data as Array<{
+    id: string;
+    invite_id: string;
+    owner_user_id: string;
+    invitee_email: string;
+    provider: string;
+    provider_message_id: string | null;
+    status: "sent" | "failed" | "skipped";
+    error_message: string | null;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+  }>) {
+    if (latestByInviteId.has(row.invite_id)) {
+      continue;
+    }
+
+    latestByInviteId.set(row.invite_id, normalizeInviteDelivery(row));
+  }
+
+  return latestByInviteId;
 }
 
 async function sendInviteEmail(input: {

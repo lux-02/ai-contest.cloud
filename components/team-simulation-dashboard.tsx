@@ -360,12 +360,16 @@ export function TeamSimulationDashboard({
   const readOnlyNotice =
     accessRole === "reviewer"
       ? "리뷰어 권한으로 팀 현황을 읽기 전용으로 보고 있습니다. 의견은 제출 워크스페이스에서 남길 수 있습니다."
-      : "협업 멤버 권한으로 팀 현황을 함께 보고 있습니다. 실제 팀 변경은 owner가 진행합니다.";
-  const humanLeadLabel = canEditTeam ? viewerLabel : "워크스페이스 owner";
-  const humanLeadRoleLabel = canEditTeam ? "팀 리드 · 직접 판단하는 역할" : `${accessRoleLabel} · 읽기 전용 참여자`;
-  const humanLeadDescription = canEditTeam
-    ? "중요한 선택은 직접 하고, AI 팀원이 속도를 올려주는 구조로 진행됩니다."
-    : `${viewerLabel} 계정은 공유된 팀 현황을 보고 있습니다. 실제 판단과 팀 액션은 owner가 계속 담당합니다.`;
+      : null;
+  const humanLeadLabel = viewerLabel;
+  const humanLeadRoleLabel =
+    accessRole === "owner" ? "워크스페이스 owner · 직접 판단하는 역할" : `${accessRoleLabel} · 공동 편집 참여자`;
+  const humanLeadDescription =
+    accessRole === "owner"
+      ? "중요한 선택은 직접 하고, AI 팀원이 속도를 올려주는 구조로 진행됩니다."
+      : accessRole === "member"
+        ? "owner와 같은 팀 세션을 함께 수정할 수 있습니다. 메시지와 작업 변경은 모든 협업자에게 바로 반영됩니다."
+        : `${viewerLabel} 계정은 공유된 팀 현황을 보고 있습니다. 실제 판단과 팀 액션은 편집 권한이 있는 멤버가 담당합니다.`;
 
   const replaceActivityEvents = (nextEvents: TeamActivityEvent[]) => {
     activityCursorRef.current = nextEvents[0]?.sequence ?? activityCursorRef.current;
@@ -901,12 +905,10 @@ export function TeamSimulationDashboard({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                      {entry.authorType === "user" && !canEditTeam ? "워크스페이스 owner" : entry.speakerName}
+                      {entry.speakerName}
                     </div>
                     {entry.speakerRole ? (
-                      <div className="mt-1 text-[11px] text-[var(--muted)]">
-                        {entry.authorType === "user" && !canEditTeam ? "팀 리드" : entry.speakerRole}
-                      </div>
+                      <div className="mt-1 text-[11px] text-[var(--muted)]">{entry.speakerRole}</div>
                     ) : null}
                   </div>
                   <div className="text-[11px] text-[var(--muted)]">{formatEventTime(entry.createdAt)}</div>
@@ -1060,7 +1062,7 @@ export function TeamSimulationDashboard({
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {member.isUserClaimed ? (
-                <span className="team-status-pill is-ready">{canEditTeam ? "내가 맡음" : "owner가 맡음"}</span>
+                <span className="team-status-pill is-ready">사람이 맡음</span>
               ) : !canEditTeam ? (
                 <span className="team-status-pill">읽기 전용</span>
               ) : (

@@ -6,10 +6,15 @@ import {
   createContestWorkspaceInviteAction,
   createContestWorkspaceShareLinkAction,
   deleteContestWorkspaceReviewAction,
+  removeContestWorkspaceCollaboratorAction,
+  resendContestWorkspaceInviteAction,
   revokeContestWorkspaceInviteAction,
   revokeContestWorkspaceShareLinkAction,
+  updateContestWorkspaceCollaboratorRoleAction,
 } from "@/app/workspace/actions";
 import { formatDate, formatDeadlineLabel } from "@/lib/utils";
+import { listLatestContestWorkspaceCollaboratorNotificationDeliveries } from "@/lib/server/contest-collaborator-notifications";
+import { listLatestContestWorkspaceInviteDeliveries } from "@/lib/server/contest-invite-notifications";
 import {
   listContestWorkspaceCollaborators,
   listContestWorkspaceInvites,
@@ -18,7 +23,15 @@ import {
 import { getContestWorkspaceSnapshot } from "@/lib/server/contest-workspace";
 import { getActiveContestWorkspaceShareLink } from "@/lib/server/contest-workspace-shares";
 import { requireViewerUser } from "@/lib/server/viewer-auth";
-import type { ContestWorkspaceAccessRole } from "@/types/contest";
+import type {
+  ContestWorkspaceAccessRole,
+  ContestWorkspaceInvite,
+  ContestWorkspaceCollaboratorNotificationDelivery,
+  ContestWorkspaceInviteDelivery,
+  ContestWorkspaceInviteDeliveryStatus,
+  ContestWorkspaceReviewNote,
+  TeamActivityEvent,
+} from "@/types/contest";
 
 type PageProps = {
   params: Promise<{
@@ -51,6 +64,174 @@ function formatWorkspaceRole(role: ContestWorkspaceAccessRole) {
   }
 
   return "Reviewer";
+}
+
+function formatInviteDeliveryStatus(status: ContestWorkspaceInviteDeliveryStatus) {
+  if (status === "sent") {
+    return "메일 발송됨";
+  }
+
+  if (status === "failed") {
+    return "발송 실패";
+  }
+
+  return "발송 보류";
+}
+
+function getInviteDeliveryTone(status: ContestWorkspaceInviteDeliveryStatus) {
+  if (status === "sent") {
+    return "border-[rgba(126,211,170,0.18)] bg-[rgba(126,211,170,0.08)] text-[rgb(204,244,222)]";
+  }
+
+  if (status === "failed") {
+    return "border-[rgba(255,120,120,0.18)] bg-[rgba(255,120,120,0.08)] text-[rgb(255,206,206)]";
+  }
+
+  return "border-[rgba(255,200,87,0.18)] bg-[rgba(255,200,87,0.08)] text-[rgb(255,224,163)]";
+}
+
+function InviteDeliveryBadge({ delivery }: { delivery: ContestWorkspaceInviteDelivery | undefined }) {
+  if (!delivery) {
+    return (
+      <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
+        발송 기록 없음
+      </span>
+    );
+  }
+
+  return (
+    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getInviteDeliveryTone(delivery.status)}`}>
+      {formatInviteDeliveryStatus(delivery.status)}
+    </span>
+  );
+}
+
+function CollaboratorNotificationBadge({
+  delivery,
+}: {
+  delivery: ContestWorkspaceCollaboratorNotificationDelivery | undefined;
+}) {
+  if (!delivery) {
+    return (
+      <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
+        owner 알림 기록 없음
+      </span>
+    );
+  }
+
+  return (
+    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getInviteDeliveryTone(delivery.status)}`}>
+      owner 알림 {formatInviteDeliveryStatus(delivery.status)}
+    </span>
+  );
+}
+
+type WorkspaceActivityItem = {
+  id: string;
+  createdAt: string;
+  badge: string;
+  title: string;
+  detail: string;
+  tone: "neutral" | "success" | "warning";
+};
+
+function getActivityToneClass(tone: WorkspaceActivityItem["tone"]) {
+  if (tone === "success") {
+    return "border-[rgba(126,211,170,0.18)] bg-[rgba(126,211,170,0.08)] text-[rgb(204,244,222)]";
+  }
+
+  if (tone === "warning") {
+    return "border-[rgba(255,200,87,0.18)] bg-[rgba(255,200,87,0.08)] text-[rgb(255,224,163)]";
+  }
+
+  return "border-[var(--border)] bg-[rgba(255,255,255,0.03)] text-[var(--foreground)]";
+}
+
+function buildWorkspaceActivityFeed(input: {
+  reviews: ContestWorkspaceReviewNote[];
+  teamEvents: TeamActivityEvent[];
+  invites: ContestWorkspaceInvite[];
+  inviteDeliveries: Map<string, ContestWorkspaceInviteDelivery>;
+  collaboratorNotificationDeliveries: Map<string, ContestWorkspaceCollaboratorNotificationDelivery>;
+  canManage: boolean;
+}) {
+  const items: WorkspaceActivityItem[] = [];
+
+  for (const event of input.teamEvents) {
+    items.push({
+      id: `team-${event.id}`,
+      createdAt: event.createdAt,
+      badge: event.source === "ai" ? "AI 팀" : event.source === "user" ? "팀 액션" : "시스템",
+      title: event.title,
+      detail: event.detail ?? "세부 설명이 없는 활동입니다.",
+      tone: event.state === "failed" ? "warning" : event.state === "completed" ? "success" : "neutral",
+    });
+  }
+
+  for (const review of input.reviews) {
+    items.push({
+      id: `review-${review.id}`,
+      createdAt: review.createdAt,
+      badge: "리뷰",
+      title: `${review.reviewerLabel}${review.reviewerRole ? ` · ${review.reviewerRole}` : ""}`,
+      detail: `[${review.focusArea}] ${review.note}`,
+      tone: "neutral",
+    });
+  }
+
+  if (input.canManage) {
+    for (const invite of input.invites) {
+      items.push({
+        id: `invite-${invite.id}`,
+        createdAt: invite.createdAt,
+        badge: "초대",
+        title: `${invite.inviteeEmail} · ${invite.role}`,
+        detail:
+          invite.status === "accepted"
+            ? "워크스페이스 초대를 수락했습니다."
+            : invite.status === "revoked"
+              ? "워크스페이스 초대가 취소되었습니다."
+              : "워크스페이스 초대가 생성되었습니다.",
+        tone: invite.status === "accepted" ? "success" : invite.status === "revoked" ? "warning" : "neutral",
+      });
+
+      const delivery = input.inviteDeliveries.get(invite.id);
+
+      if (delivery) {
+        items.push({
+          id: `invite-delivery-${delivery.id}`,
+          createdAt: delivery.createdAt,
+          badge: "메일",
+          title: `${invite.inviteeEmail} 초대 메일`,
+          detail:
+            delivery.status === "sent"
+              ? "초대 메일 발송이 확인되었습니다."
+              : delivery.errorMessage || "초대 메일 발송 상태를 확인해야 합니다.",
+          tone: delivery.status === "sent" ? "success" : "warning",
+        });
+      }
+
+      const collaboratorDelivery = input.collaboratorNotificationDeliveries.get(invite.id);
+
+      if (collaboratorDelivery) {
+        items.push({
+          id: `collaborator-delivery-${collaboratorDelivery.id}`,
+          createdAt: collaboratorDelivery.createdAt,
+          badge: "owner 알림",
+          title: `${collaboratorDelivery.collaboratorEmail} 수락 알림`,
+          detail:
+            collaboratorDelivery.status === "sent"
+              ? "owner에게 협업자 합류 알림이 발송되었습니다."
+              : collaboratorDelivery.errorMessage || "owner 알림 상태를 확인해야 합니다.",
+          tone: collaboratorDelivery.status === "sent" ? "success" : "warning",
+        });
+      }
+    }
+  }
+
+  return items
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+    .slice(0, 12);
 }
 
 export const dynamic = "force-dynamic";
@@ -126,6 +307,21 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
       : Promise.resolve([]),
   ]);
 
+  const inviteDeliveries =
+    access.canManage && invites.length > 0
+      ? await listLatestContestWorkspaceInviteDeliveries({
+          ownerUserId: access.ownerUserId,
+          inviteIds: invites.map((invite) => invite.id),
+        })
+      : new Map<string, ContestWorkspaceInviteDelivery>();
+  const collaboratorNotificationDeliveries =
+    access.canManage && invites.length > 0
+      ? await listLatestContestWorkspaceCollaboratorNotificationDeliveries({
+          ownerUserId: access.ownerUserId,
+          inviteIds: invites.map((invite) => invite.id),
+        })
+      : new Map<string, ContestWorkspaceCollaboratorNotificationDelivery>();
+
   if (!snapshot) {
     return (
       <main className="mx-auto max-w-5xl px-6 py-16">
@@ -147,6 +343,16 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
 
   const readyCount = snapshot.submissionPackage.checklist.filter((item) => item.state === "ready").length;
   const warningCount = snapshot.submissionPackage.checklist.filter((item) => item.state === "warning").length;
+  const pendingInvites = invites.filter((invite) => invite.status === "pending");
+  const historicalInvites = invites.filter((invite) => invite.status !== "pending");
+  const collaborationActivity = buildWorkspaceActivityFeed({
+    reviews: snapshot.reviewNotes,
+    teamEvents: snapshot.teamSnapshot?.teamSession.activityEvents ?? [],
+    invites,
+    inviteDeliveries,
+    collaboratorNotificationDeliveries,
+    canManage: access.canManage,
+  });
 
   return (
     <main className="mx-auto max-w-7xl px-6 pb-24 pt-10">
@@ -376,6 +582,27 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
                           <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
                             {collaborator.role} · 합류 {formatDate(collaborator.createdAt)}
                           </p>
+                          <div className="mt-3 flex flex-wrap gap-3">
+                            <form action={updateContestWorkspaceCollaboratorRoleAction}>
+                              <input type="hidden" name="collaboratorId" value={collaborator.id} />
+                              <input type="hidden" name="contestId" value={snapshot.contest.id} />
+                              <input type="hidden" name="ideationSessionId" value={snapshot.ideationSession.id} />
+                              <input type="hidden" name="next" value={nextPath} />
+                              <input type="hidden" name="role" value={collaborator.role === "member" ? "reviewer" : "member"} />
+                              <button type="submit" className="secondary-button">
+                                {collaborator.role === "member" ? "reviewer로 변경" : "member로 변경"}
+                              </button>
+                            </form>
+                            <form action={removeContestWorkspaceCollaboratorAction}>
+                              <input type="hidden" name="collaboratorId" value={collaborator.id} />
+                              <input type="hidden" name="contestId" value={snapshot.contest.id} />
+                              <input type="hidden" name="ideationSessionId" value={snapshot.ideationSession.id} />
+                              <input type="hidden" name="next" value={nextPath} />
+                              <button type="submit" className="secondary-button">
+                                접근 제거
+                              </button>
+                            </form>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -387,30 +614,88 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
                 <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-5">
                   <div className="text-sm font-semibold text-[var(--foreground)]">대기 중인 초대</div>
                   <div className="mt-4 space-y-3">
-                    {invites.filter((invite) => invite.status === "pending").length ? (
-                      invites
-                        .filter((invite) => invite.status === "pending")
-                        .map((invite) => (
+                    {pendingInvites.length ? (
+                      pendingInvites.map((invite) => (
                           <div key={invite.id} className="rounded-[18px] border border-[var(--border)] px-4 py-3">
                             <div className="text-sm font-semibold text-[var(--foreground)]">{invite.inviteeEmail}</div>
-                            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
-                              {invite.role} · 생성 {formatDate(invite.createdAt)}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <InviteDeliveryBadge delivery={inviteDeliveries.get(invite.id)} />
+                              <span className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                                {invite.role} · 생성 {formatDate(invite.createdAt)}
+                              </span>
+                            </div>
+                            {inviteDeliveries.get(invite.id)?.createdAt ? (
+                              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                                최근 발송 {formatDate(inviteDeliveries.get(invite.id)?.createdAt ?? invite.createdAt)}
+                              </p>
+                            ) : null}
+                            {inviteDeliveries.get(invite.id)?.errorMessage ? (
+                              <p className="mt-2 text-xs leading-5 text-[rgb(255,206,206)]">
+                                {inviteDeliveries.get(invite.id)?.errorMessage}
+                              </p>
+                            ) : null}
                             <p className="mt-2 break-all text-xs leading-5 text-[var(--muted)]">{invite.inviteUrl}</p>
-                            <form action={revokeContestWorkspaceInviteAction} className="mt-3">
-                              <input type="hidden" name="inviteId" value={invite.id} />
-                              <input type="hidden" name="contestId" value={snapshot.contest.id} />
-                              <input type="hidden" name="ideationSessionId" value={snapshot.ideationSession.id} />
-                              <input type="hidden" name="next" value={nextPath} />
-                              <button type="submit" className="secondary-button">
-                                초대 취소
-                              </button>
-                            </form>
+                            <div className="mt-3 flex flex-wrap gap-3">
+                              <form action={resendContestWorkspaceInviteAction}>
+                                <input type="hidden" name="inviteId" value={invite.id} />
+                                <input type="hidden" name="contestId" value={snapshot.contest.id} />
+                                <input type="hidden" name="ideationSessionId" value={snapshot.ideationSession.id} />
+                                <input type="hidden" name="next" value={nextPath} />
+                                <button type="submit" className="secondary-button">
+                                  초대 메일 다시 보내기
+                                </button>
+                              </form>
+                              <form action={revokeContestWorkspaceInviteAction}>
+                                <input type="hidden" name="inviteId" value={invite.id} />
+                                <input type="hidden" name="contestId" value={snapshot.contest.id} />
+                                <input type="hidden" name="ideationSessionId" value={snapshot.ideationSession.id} />
+                                <input type="hidden" name="next" value={nextPath} />
+                                <button type="submit" className="secondary-button">
+                                  초대 취소
+                                </button>
+                              </form>
+                            </div>
                           </div>
                         ))
                     ) : (
                       <div className="text-sm leading-6 text-[var(--muted)]">현재 대기 중인 초대가 없습니다.</div>
                     )}
+                  </div>
+
+                  <div className="mt-6 border-t border-[var(--border)] pt-5">
+                    <div className="text-sm font-semibold text-[var(--foreground)]">최근 초대 이력</div>
+                    <div className="mt-4 space-y-3">
+                      {historicalInvites.length ? (
+                        historicalInvites.map((invite) => (
+                          <div key={invite.id} className="rounded-[18px] border border-[var(--border)] px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-sm font-semibold text-[var(--foreground)]">{invite.inviteeEmail}</div>
+                              <span className="rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.03)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
+                                {invite.status}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                              {invite.role} · 생성 {formatDate(invite.createdAt)}
+                              {invite.acceptedAt ? ` · 수락 ${formatDate(invite.acceptedAt)}` : ""}
+                            </p>
+                            {invite.status === "accepted" ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <CollaboratorNotificationBadge
+                                  delivery={collaboratorNotificationDeliveries.get(invite.id)}
+                                />
+                                {collaboratorNotificationDeliveries.get(invite.id)?.errorMessage ? (
+                                  <span className="text-xs leading-5 text-[rgb(255,206,206)]">
+                                    {collaboratorNotificationDeliveries.get(invite.id)?.errorMessage}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm leading-6 text-[var(--muted)]">아직 완료되거나 취소된 초대 이력이 없습니다.</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -535,6 +820,30 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
                   <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.note}</p>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="surface-card rounded-[32px] p-7">
+            <div className="eyebrow">협업 활동</div>
+            <div className="mt-5 space-y-3">
+              {collaborationActivity.length ? (
+                collaborationActivity.map((item) => (
+                  <div key={item.id} className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getActivityToneClass(item.tone)}`}>
+                        {item.badge}
+                      </span>
+                      <span className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">{formatDate(item.createdAt)}</span>
+                    </div>
+                    <div className="mt-3 text-sm font-semibold text-[var(--foreground)]">{item.title}</div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.detail}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.03)] p-4 text-sm leading-6 text-[var(--muted)]">
+                  아직 표시할 협업 활동이 없습니다. 팀 대시보드, 리뷰 노트, 협업 초대를 시작하면 최근 흐름이 여기에 쌓입니다.
+                </div>
+              )}
             </div>
           </section>
 

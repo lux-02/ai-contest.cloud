@@ -63,7 +63,7 @@ function buildAccess(input: {
 }): ContestWorkspaceAccess {
   const canManage = input.role === "owner";
   const canUseTeamDashboard = true;
-  const canEditTeam = input.role === "owner";
+  const canEditTeam = input.role !== "reviewer";
 
   return {
     viewerUserId: input.viewerUserId,
@@ -215,6 +215,59 @@ export async function listContestWorkspaceCollaborators(input: {
   return rows.map((row, index) => normalizeCollaborator(row, emails[index] ?? null));
 }
 
+export async function removeContestWorkspaceCollaborator(input: {
+  collaboratorId: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+}) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    throw new Error("Supabase service client is not configured.");
+  }
+
+  const { error } = await supabase
+    .from("contest_workspace_members")
+    .delete()
+    .eq("id", input.collaboratorId)
+    .eq("contest_id", input.contestId)
+    .eq("ideation_session_id", input.ideationSessionId)
+    .eq("owner_user_id", input.ownerUserId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function updateContestWorkspaceCollaboratorRole(input: {
+  collaboratorId: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+  role: Exclude<ContestWorkspaceAccessRole, "owner">;
+}) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    throw new Error("Supabase service client is not configured.");
+  }
+
+  const { error } = await supabase
+    .from("contest_workspace_members")
+    .update({
+      role: input.role,
+    })
+    .eq("id", input.collaboratorId)
+    .eq("contest_id", input.contestId)
+    .eq("ideation_session_id", input.ideationSessionId)
+    .eq("owner_user_id", input.ownerUserId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function listContestWorkspaceInvites(input: {
   contestId: string;
   ideationSessionId: string;
@@ -329,6 +382,36 @@ export async function revokeContestWorkspaceInvite(input: {
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function getContestWorkspaceInviteById(input: {
+  inviteId: string;
+  contestId: string;
+  ideationSessionId: string;
+  ownerUserId: string;
+}) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("contest_workspace_invites")
+    .select(
+      "id, contest_id, ideation_session_id, owner_user_id, invitee_email, role, invite_token, status, accepted_by_user_id, accepted_at, created_at, updated_at",
+    )
+    .eq("id", input.inviteId)
+    .eq("contest_id", input.contestId)
+    .eq("ideation_session_id", input.ideationSessionId)
+    .eq("owner_user_id", input.ownerUserId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return normalizeInvite(data as ContestWorkspaceInviteRow);
 }
 
 export async function getContestWorkspaceInviteByToken(inviteToken: string) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { simulateContestTeamTurn } from "@/lib/server/contest-team";
-import { getTeamApiContext } from "@/lib/server/team-api";
+import { getTeamWorkspaceWriteApiContext } from "@/lib/server/team-api";
 
 export const runtime = "nodejs";
 
@@ -14,12 +14,6 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { contestId } = await context.params;
-    const resolved = await getTeamApiContext(contestId);
-
-    if ("response" in resolved) {
-      return resolved.response;
-    }
-
     const body = (await request.json().catch(() => ({}))) as {
       teamSessionId?: string;
       message?: string;
@@ -34,10 +28,20 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "보낼 내용이 필요합니다." }, { status: 400 });
     }
 
+    const resolved = await getTeamWorkspaceWriteApiContext({
+      contestId,
+      teamSessionId: body.teamSessionId,
+    });
+
+    if (!("actor" in resolved)) {
+      return resolved.response;
+    }
+
     const snapshot = await simulateContestTeamTurn({
       contestId,
       teamSessionId: body.teamSessionId,
-      userId: resolved.user.id,
+      userId: resolved.access.ownerUserId,
+      actor: resolved.actor,
       message: body.message,
       quickAction: body.quickAction,
     });

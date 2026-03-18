@@ -14,12 +14,22 @@ type TeamJobInput =
       contestId: string;
       ideationSessionId: string;
       userId: string;
+      actor?: {
+        userId: string;
+        label: string;
+        roleLabel: string;
+      } | null;
     }
   | {
       kind: "turn";
       contestId: string;
       teamSessionId: string;
       userId: string;
+      actor?: {
+        userId: string;
+        label: string;
+        roleLabel: string;
+      } | null;
       message?: string | null;
       quickAction?: string | null;
     };
@@ -80,6 +90,23 @@ function normalizeTeamJob(row: TeamJobRow): TeamAsyncJobSnapshot {
     startedAt: toIsoString(row.started_at),
     completedAt: toIsoString(row.completed_at),
   };
+}
+
+export async function getTeamJobInputById(jobId: string, kind: TeamAsyncJobKind, contestId?: string) {
+  const pool = getDbPool();
+  const result = await pool.query<Pick<TeamJobRow, "input_json">>(
+    `
+      select input_json
+      from public.ai_generation_jobs
+      where id = $1
+        and job_type = $2
+        and ($3::uuid is null or contest_id = $3::uuid)
+      limit 1
+    `,
+    [jobId, getJobType(kind), contestId ?? null],
+  );
+
+  return result.rows[0]?.input_json ?? null;
 }
 
 function buildInputHash(input: TeamJobInput) {
@@ -353,6 +380,7 @@ async function processTeamJob(row: TeamJobRow) {
       contestId: input.contestId,
       teamSessionId: input.teamSessionId,
       userId: input.userId,
+      actor: input.actor,
       message: input.message,
       quickAction: input.quickAction,
     });

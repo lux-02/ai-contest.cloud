@@ -30,6 +30,34 @@ export async function getTeamApiContext(contestId: string) {
   };
 }
 
+function resolveViewerLabel(user: NonNullable<Awaited<ReturnType<typeof getViewerSession>>["user"]>) {
+  const metadataName =
+    typeof user.user_metadata?.name === "string"
+      ? user.user_metadata.name
+      : typeof user.user_metadata?.full_name === "string"
+        ? user.user_metadata.full_name
+        : "";
+
+  if (metadataName.trim()) {
+    return metadataName.trim();
+  }
+
+  const emailName = user.email?.split("@")[0]?.trim();
+  return emailName || "협업 멤버";
+}
+
+function resolveViewerRoleLabel(role: "owner" | "member" | "reviewer") {
+  if (role === "owner") {
+    return "워크스페이스 owner";
+  }
+
+  if (role === "member") {
+    return "협업 멤버";
+  }
+
+  return "리뷰어";
+}
+
 export async function getTeamWorkspaceApiContext(input: {
   contestId: string;
   ideationSessionId?: string | null;
@@ -56,5 +84,32 @@ export async function getTeamWorkspaceApiContext(input: {
   return {
     ...base,
     access,
+  };
+}
+
+export async function getTeamWorkspaceWriteApiContext(input: {
+  contestId: string;
+  ideationSessionId?: string | null;
+  teamSessionId?: string | null;
+}) {
+  const resolved = await getTeamWorkspaceApiContext(input);
+
+  if (!("access" in resolved)) {
+    return resolved;
+  }
+
+  if (!resolved.access.canEditTeam) {
+    return {
+      response: NextResponse.json({ error: "팀 세션을 수정할 권한이 없습니다." }, { status: 403 }),
+    };
+  }
+
+  return {
+    ...resolved,
+    actor: {
+      userId: resolved.user.id,
+      label: resolveViewerLabel(resolved.user),
+      roleLabel: resolveViewerRoleLabel(resolved.access.role),
+    },
   };
 }
