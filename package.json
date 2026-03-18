@@ -11,7 +11,8 @@
     "analysis:backfill": "node --env-file=.env.local --import tsx scripts/backfill-pending-analyses.ts",
     "readme:refresh": "node --import tsx scripts/update-readme-lineup.ts",
     "ai-jobs:run": "node --env-file=.env.local --import tsx scripts/run-ai-jobs.ts",
-    "contest-reminders:run": "node --env-file=.env.local --import tsx scripts/run-contest-reminders.ts"
+    "contest-reminders:run": "node --env-file=.env.local --import tsx scripts/run-contest-reminders.ts",
+    "email:smoke-test": "node --env-file=.env.local --import tsx scripts/run-email-smoke-test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

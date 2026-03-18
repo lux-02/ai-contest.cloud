@@ -277,6 +277,12 @@ contest reminder 수동 drain:
 npm run contest-reminders:run -- 20
 ```
 
+email smoke test:
+
+```bash
+npm run email:smoke-test
+```
+
 ## Required Environment
 
 ```bash
@@ -313,6 +319,10 @@ APP_BASE_URL=https://www.ai-contest.cloud
 RESEND_API_KEY=...
 REMINDER_EMAIL_FROM=AI Contest Cloud <reminders@example.com>
 REMINDER_EMAIL_REPLY_TO=...
+EMAIL_SMOKE_TEST_FROM=AI Contest Cloud <onboarding@resend.dev>
+EMAIL_SMOKE_TEST_TO=delivered@resend.dev
+EMAIL_SMOKE_TEST_SUBJECT=[AI Contest Cloud] Resend smoke test
+EMAIL_SMOKE_TEST_TEXT=Smoke test from ai-contest.cloud
 
 ADMIN_SUPABASE_EMAIL=admin@example.com
 ADMIN_SUPABASE_EMAILS=admin@example.com
