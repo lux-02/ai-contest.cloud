@@ -19,6 +19,7 @@ import {
   listContestWorkspaceCollaborators,
   listContestWorkspaceInvites,
   resolveContestWorkspaceAccess,
+  touchContestWorkspaceView,
 } from "@/lib/server/contest-workspace-access";
 import { getContestWorkspaceSnapshot } from "@/lib/server/contest-workspace";
 import { getActiveContestWorkspaceShareLink } from "@/lib/server/contest-workspace-shares";
@@ -281,6 +282,12 @@ export default async function WorkspacePage({ params, searchParams }: PageProps)
       </main>
     );
   }
+
+  await touchContestWorkspaceView({
+    contestId,
+    ideationSessionId: session,
+    viewerUserId: user.id,
+  });
 
   const [snapshot, shareLink, collaborators, invites] = await Promise.all([
     getContestWorkspaceSnapshot(contestId, session, user.id),

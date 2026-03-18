@@ -651,6 +651,7 @@ export interface ContestWorkspaceMembershipSummary {
   ownerUserId: string;
   role: ContestWorkspaceAccessRole;
   updatedAt: string;
+  lastViewedAt?: string | null;
 }
 
 export interface ContestWorkspaceInviteInboxEntry {

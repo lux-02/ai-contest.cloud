@@ -4,7 +4,7 @@ import { TeamSimulationDashboard } from "@/components/team-simulation-dashboard"
 import { getContestById } from "@/lib/queries";
 import { getContestTeamHandoff } from "@/lib/server/contest-ideation";
 import { getTeamSessionSnapshot } from "@/lib/server/contest-team";
-import { resolveContestWorkspaceAccess } from "@/lib/server/contest-workspace-access";
+import { resolveContestWorkspaceAccess, touchContestWorkspaceView } from "@/lib/server/contest-workspace-access";
 import { requireViewerUser } from "@/lib/server/viewer-auth";
 
 type PageProps = {
@@ -79,6 +79,12 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
       </main>
     );
   }
+
+  await touchContestWorkspaceView({
+    contestId,
+    ideationSessionId: session,
+    viewerUserId: user.id,
+  });
 
   const [contest, handoff, snapshot] = await Promise.all([
     getContestById(contestId),

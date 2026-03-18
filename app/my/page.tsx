@@ -48,6 +48,28 @@ function isRecentTimestamp(value?: string, windowDays = RECENT_SIGNAL_WINDOW_DAY
   return now - target <= windowDays * 24 * 60 * 60 * 1000;
 }
 
+function isUnreadSignalSince(input: {
+  lastViewedAt?: string | null;
+  signalAt?: string | null;
+}) {
+  if (!input.signalAt) {
+    return false;
+  }
+
+  if (!input.lastViewedAt) {
+    return true;
+  }
+
+  const signalTime = new Date(input.signalAt).getTime();
+  const lastViewedTime = new Date(input.lastViewedAt).getTime();
+
+  if (Number.isNaN(signalTime) || Number.isNaN(lastViewedTime)) {
+    return false;
+  }
+
+  return signalTime > lastViewedTime;
+}
+
 function TrackingSection({
   title,
   body,
@@ -245,6 +267,7 @@ type SharedWorkspaceEntry = ContestWorkspaceMembershipSummary & {
     reviewCount: number;
     readinessScore: number | null;
   };
+  hasUnreadActivity: boolean;
   attention: {
     label: string;
     detail: string;
@@ -287,6 +310,7 @@ function buildSharedWorkspaceAttention(input: {
   contest: Contest;
   preview: SharedWorkspaceEntry["preview"];
   stats: SharedWorkspaceEntry["stats"];
+  hasUnreadActivity: boolean;
 }) {
   if (input.stats.warningChecklistCount > 0) {
     return {
@@ -296,19 +320,19 @@ function buildSharedWorkspaceAttention(input: {
     };
   }
 
-  if (input.preview?.label === "새 리뷰" && isRecentTimestamp(input.preview.updatedAt)) {
+  if (input.preview?.label === "새 리뷰" && input.hasUnreadActivity) {
     return {
-      label: "리뷰 확인",
-      detail: "새 피드백이 들어왔습니다.",
+      label: "미확인 리뷰",
+      detail: "마지막으로 본 이후 새 피드백이 들어왔습니다.",
       tone: "neutral" as const,
     };
   }
 
   if (input.preview?.label === "AI 팀 활동" || input.preview?.label === "팀 액션") {
-    if (isRecentTimestamp(input.preview.updatedAt)) {
+    if (input.hasUnreadActivity) {
       return {
-        label: "최근 활동",
-        detail: "팀 대시보드에 새 진행 상황이 있습니다.",
+        label: "미확인 활동",
+        detail: "마지막으로 본 이후 팀 대시보드에 새 진행 상황이 있습니다.",
         tone: "success" as const,
       };
     }
@@ -355,6 +379,7 @@ function buildInviteAttention(entry: ContestWorkspaceInviteInboxEntry) {
 
 function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }) {
   const attentionCount = entries.filter((entry) => entry.attention).length;
+  const unreadCount = entries.filter((entry) => entry.hasUnreadActivity).length;
 
   return (
     <section className="mt-10">
@@ -366,6 +391,11 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {unreadCount ? (
+            <div className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 text-sm font-semibold text-[var(--success)]">
+              미확인 {unreadCount}
+            </div>
+          ) : null}
           {attentionCount ? (
             <div className="rounded-full border border-[rgba(217,119,6,0.24)] bg-[rgba(217,119,6,0.12)] px-3 py-1.5 text-sm font-semibold text-[rgb(255,211,146)]">
               확인 필요 {attentionCount}
@@ -387,6 +417,11 @@ function SharedWorkspaceSection({ entries }: { entries: SharedWorkspaceEntry[] }
                     <span className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 font-semibold text-[var(--success)]">
                       {entry.role}
                     </span>
+                    {entry.hasUnreadActivity ? (
+                      <span className="rounded-full border border-[rgba(85,122,87,0.18)] bg-[rgba(85,122,87,0.08)] px-3 py-1.5 font-semibold text-[var(--success)]">
+                        미확인
+                      </span>
+                    ) : null}
                     {entry.attention ? (
                       <span
                         className={`rounded-full border px-3 py-1.5 font-semibold ${
@@ -568,15 +603,21 @@ export default async function MyPage() {
         readinessScore: snapshot?.teamSnapshot?.teamSession.readinessScore ?? null,
       };
       const preview = buildSharedWorkspacePreview(snapshot);
+      const hasUnreadActivity = isUnreadSignalSince({
+        lastViewedAt: entry.lastViewedAt,
+        signalAt: preview?.updatedAt ?? entry.updatedAt,
+      });
 
       return {
         ...entry,
         preview,
         stats,
+        hasUnreadActivity,
         attention: buildSharedWorkspaceAttention({
           contest: entry.contest,
           preview,
           stats,
+          hasUnreadActivity,
         }),
       } satisfies SharedWorkspaceEntry;
     }),

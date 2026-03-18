@@ -42,6 +42,11 @@ type ContestWorkspaceInviteRow = {
   updated_at: string;
 };
 
+type ContestWorkspaceMemberViewRow = {
+  ideation_session_id: string;
+  last_viewed_at: string;
+};
+
 function getAppBaseUrl() {
   return (process.env.APP_BASE_URL ?? "https://www.ai-contest.cloud").replace(/\/$/, "");
 }
@@ -234,8 +239,16 @@ export async function listContestWorkspaceMembershipsForViewer(viewerUserId: str
     return [] satisfies ContestWorkspaceMembershipSummary[];
   }
 
+  const { data: viewData } = await supabase
+    .from("contest_workspace_member_views")
+    .select("ideation_session_id, last_viewed_at")
+    .eq("viewer_user_id", viewerUserId);
+
   const contests = await getContests();
   const contestMap = new Map(contests.map((contest) => [contest.id, contest]));
+  const viewMap = new Map(
+    ((viewData as ContestWorkspaceMemberViewRow[] | null) ?? []).map((row) => [row.ideation_session_id, row.last_viewed_at]),
+  );
 
   return (data as Array<{
     contest_id: string;
@@ -257,9 +270,36 @@ export async function listContestWorkspaceMembershipsForViewer(viewerUserId: str
         ownerUserId: row.owner_user_id,
         role: row.role,
         updatedAt: row.updated_at,
+        lastViewedAt: viewMap.get(row.ideation_session_id) ?? null,
       } satisfies ContestWorkspaceMembershipSummary;
     })
     .flatMap((entry) => (entry ? [entry] : []));
+}
+
+export async function touchContestWorkspaceView(input: {
+  contestId: string;
+  ideationSessionId: string;
+  viewerUserId: string;
+}) {
+  const supabase = getSupabaseServiceClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("contest_workspace_member_views").upsert(
+    {
+      contest_id: input.contestId,
+      ideation_session_id: input.ideationSessionId,
+      viewer_user_id: input.viewerUserId,
+      last_viewed_at: new Date().toISOString(),
+    },
+    { onConflict: "ideation_session_id,viewer_user_id" },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function listPendingContestWorkspaceInvitesForViewer(viewerEmail: string) {
