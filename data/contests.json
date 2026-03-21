@@ -6,7 +6,8 @@
       "openai-safety-sprint",
       "multimodal-studio-jam",
       "campus-rag-league",
-      "roboops-field-test"
+      "roboops-field-test",
+      "1-ai"
     ],
     "highPrize": [
       "openai-safety-sprint",
@@ -230,8 +231,10 @@
       "badgeLabels": [],
       "eligibilitySegments": [],
       "shortDescription": "AI 영상으로 아리랑의 꿈을 담아보세요! 상금 1300만 원.",
-      "featuredSections": [],
-      "featuredReason": null
+      "featuredSections": [
+        "deadlineUrgent"
+      ],
+      "featuredReason": "마감이 7일 이내로 가까워 빠른 지원 판단이 필요한 대회"
     },
     {
       "id": "161295a7-628d-4fa5-af13-9c516b35cdea",
