@@ -36,7 +36,7 @@
       "deadlineDate": "2026-03-14",
       "prizePoolKrw": 72500000,
       "prizeLabel": "약 7,250만원",
-      "viewCount": 15,
+      "viewCount": 16,
       "applyCount": 3,
       "categories": [
         "llm-agents",
@@ -86,8 +86,8 @@
       "deadlineDate": "2026-03-16",
       "prizePoolKrw": 21750000,
       "prizeLabel": "약 2,175만원",
-      "viewCount": 3,
-      "applyCount": 1,
+      "viewCount": 4,
+      "applyCount": 2,
       "categories": [
         "multimodal-ai",
         "generative-ai"
@@ -130,8 +130,8 @@
       "deadlineDate": "2026-03-21",
       "prizePoolKrw": 8700000,
       "prizeLabel": "약 870만원",
-      "viewCount": 16,
-      "applyCount": 3,
+      "viewCount": 17,
+      "applyCount": 4,
       "categories": [
         "llm-agents",
         "ai-for-social-good"
@@ -175,7 +175,7 @@
       "deadlineDate": "2026-03-25",
       "prizePoolKrw": 17400000,
       "prizeLabel": "약 1,740만원",
-      "viewCount": 4,
+      "viewCount": 5,
       "applyCount": 1,
       "categories": [
         "robotics",
@@ -219,8 +219,8 @@
       "deadlineDate": "2026-03-28",
       "prizePoolKrw": 1450000,
       "prizeLabel": "약 500만원",
-      "viewCount": 13,
-      "applyCount": 12,
+      "viewCount": 14,
+      "applyCount": 13,
       "categories": [
         "generative-ai"
       ],
@@ -248,8 +248,8 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "약 400만원 + 해외 프로그램",
-      "viewCount": 270,
-      "applyCount": 15,
+      "viewCount": 271,
+      "applyCount": 16,
       "categories": [
         "generative-ai"
       ],
@@ -285,8 +285,8 @@
       "deadlineDate": "2026-04-05",
       "prizePoolKrw": 36250000,
       "prizeLabel": "약 3,625만원",
-      "viewCount": 3,
-      "applyCount": 2,
+      "viewCount": 4,
+      "applyCount": 3,
       "categories": [
         "computer-vision",
         "ai-for-social-good"
@@ -331,7 +331,7 @@
       "deadlineDate": "2026-04-12",
       "prizePoolKrw": 43500000,
       "prizeLabel": "약 4,350만원",
-      "viewCount": 3,
+      "viewCount": 4,
       "applyCount": 2,
       "categories": [
         "data-science",
@@ -372,8 +372,8 @@
       "deadlineDate": "2026-04-30",
       "prizePoolKrw": 12800000,
       "prizeLabel": "약 220만원",
-      "viewCount": 7,
-      "applyCount": 6,
+      "viewCount": 8,
+      "applyCount": 7,
       "categories": [
         "generative-ai"
       ],
