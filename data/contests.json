@@ -37,7 +37,7 @@
       "prizePoolKrw": 72500000,
       "prizeLabel": "약 7,250만원",
       "viewCount": 21,
-      "applyCount": 3,
+      "applyCount": 4,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -87,7 +87,7 @@
       "prizePoolKrw": 21750000,
       "prizeLabel": "약 2,175만원",
       "viewCount": 5,
-      "applyCount": 2,
+      "applyCount": 3,
       "categories": [
         "multimodal-ai",
         "generative-ai"
@@ -176,7 +176,7 @@
       "prizePoolKrw": 17400000,
       "prizeLabel": "약 1,740만원",
       "viewCount": 6,
-      "applyCount": 1,
+      "applyCount": 2,
       "categories": [
         "robotics",
         "ai-infra-systems"
@@ -220,7 +220,7 @@
       "prizePoolKrw": 1450000,
       "prizeLabel": "약 500만원",
       "viewCount": 15,
-      "applyCount": 14,
+      "applyCount": 15,
       "categories": [
         "generative-ai"
       ],
@@ -248,8 +248,8 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "약 400만원 + 해외 프로그램",
-      "viewCount": 309,
-      "applyCount": 17,
+      "viewCount": 310,
+      "applyCount": 18,
       "categories": [
         "generative-ai"
       ],
@@ -286,7 +286,7 @@
       "prizePoolKrw": 36250000,
       "prizeLabel": "약 3,625만원",
       "viewCount": 5,
-      "applyCount": 3,
+      "applyCount": 4,
       "categories": [
         "computer-vision",
         "ai-for-social-good"
@@ -332,7 +332,7 @@
       "prizePoolKrw": 43500000,
       "prizeLabel": "약 4,350만원",
       "viewCount": 5,
-      "applyCount": 2,
+      "applyCount": 3,
       "categories": [
         "data-science",
         "ai-for-social-good"
