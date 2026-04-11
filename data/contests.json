@@ -37,7 +37,7 @@
       "prizePoolKrw": 72500000,
       "prizeLabel": "약 7,250만원",
       "viewCount": 30,
-      "applyCount": 8,
+      "applyCount": 9,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -87,7 +87,7 @@
       "prizePoolKrw": 21750000,
       "prizeLabel": "약 2,175만원",
       "viewCount": 6,
-      "applyCount": 4,
+      "applyCount": 5,
       "categories": [
         "multimodal-ai",
         "generative-ai"
@@ -131,7 +131,7 @@
       "prizePoolKrw": 8700000,
       "prizeLabel": "약 870만원",
       "viewCount": 36,
-      "applyCount": 9,
+      "applyCount": 10,
       "categories": [
         "llm-agents",
         "ai-for-social-good"
@@ -176,7 +176,7 @@
       "prizePoolKrw": 17400000,
       "prizeLabel": "약 1,740만원",
       "viewCount": 7,
-      "applyCount": 4,
+      "applyCount": 5,
       "categories": [
         "robotics",
         "ai-infra-systems"
@@ -220,7 +220,7 @@
       "prizePoolKrw": 1450000,
       "prizeLabel": "약 500만원",
       "viewCount": 16,
-      "applyCount": 16,
+      "applyCount": 17,
       "categories": [
         "generative-ai"
       ],
@@ -248,8 +248,8 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "약 400만원 + 해외 프로그램",
-      "viewCount": 341,
-      "applyCount": 23,
+      "viewCount": 342,
+      "applyCount": 24,
       "categories": [
         "generative-ai"
       ],
@@ -286,7 +286,7 @@
       "prizePoolKrw": 36250000,
       "prizeLabel": "약 3,625만원",
       "viewCount": 5,
-      "applyCount": 5,
+      "applyCount": 6,
       "categories": [
         "computer-vision",
         "ai-for-social-good"
@@ -332,7 +332,7 @@
       "prizePoolKrw": 43500000,
       "prizeLabel": "약 4,350만원",
       "viewCount": 5,
-      "applyCount": 4,
+      "applyCount": 5,
       "categories": [
         "data-science",
         "ai-for-social-good"
@@ -373,7 +373,7 @@
       "prizePoolKrw": 12800000,
       "prizeLabel": "약 220만원",
       "viewCount": 10,
-      "applyCount": 9,
+      "applyCount": 10,
       "categories": [
         "generative-ai"
       ],
