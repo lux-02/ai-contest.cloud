@@ -36,8 +36,8 @@
       "deadlineDate": "2026-03-14",
       "prizePoolKrw": 72500000,
       "prizeLabel": "약 7,250만원",
-      "viewCount": 56,
-      "applyCount": 14,
+      "viewCount": 57,
+      "applyCount": 15,
       "categories": [
         "llm-agents",
         "ai-infra-systems"
@@ -130,8 +130,8 @@
       "deadlineDate": "2026-03-21",
       "prizePoolKrw": 8700000,
       "prizeLabel": "약 870만원",
-      "viewCount": 51,
-      "applyCount": 14,
+      "viewCount": 52,
+      "applyCount": 15,
       "categories": [
         "llm-agents",
         "ai-for-social-good"
@@ -285,7 +285,7 @@
       "deadlineDate": "2026-04-05",
       "prizePoolKrw": 36250000,
       "prizeLabel": "약 3,625만원",
-      "viewCount": 9,
+      "viewCount": 10,
       "applyCount": 8,
       "categories": [
         "computer-vision",
@@ -331,7 +331,7 @@
       "deadlineDate": "2026-04-12",
       "prizePoolKrw": 43500000,
       "prizeLabel": "약 4,350만원",
-      "viewCount": 11,
+      "viewCount": 13,
       "applyCount": 7,
       "categories": [
         "data-science",
