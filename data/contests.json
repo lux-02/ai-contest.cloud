@@ -36,7 +36,7 @@
       "deadlineDate": "2026-03-14",
       "prizePoolKrw": 72500000,
       "prizeLabel": "약 7,250만원",
-      "viewCount": 57,
+      "viewCount": 58,
       "applyCount": 15,
       "categories": [
         "llm-agents",
@@ -86,7 +86,7 @@
       "deadlineDate": "2026-03-16",
       "prizePoolKrw": 21750000,
       "prizeLabel": "약 2,175만원",
-      "viewCount": 12,
+      "viewCount": 13,
       "applyCount": 8,
       "categories": [
         "multimodal-ai",
@@ -130,7 +130,7 @@
       "deadlineDate": "2026-03-21",
       "prizePoolKrw": 8700000,
       "prizeLabel": "약 870만원",
-      "viewCount": 52,
+      "viewCount": 53,
       "applyCount": 15,
       "categories": [
         "llm-agents",
@@ -175,7 +175,7 @@
       "deadlineDate": "2026-03-25",
       "prizePoolKrw": 17400000,
       "prizeLabel": "약 1,740만원",
-      "viewCount": 13,
+      "viewCount": 15,
       "applyCount": 8,
       "categories": [
         "robotics",
@@ -219,7 +219,7 @@
       "deadlineDate": "2026-03-28",
       "prizePoolKrw": 1450000,
       "prizeLabel": "약 500만원",
-      "viewCount": 22,
+      "viewCount": 23,
       "applyCount": 19,
       "categories": [
         "generative-ai"
@@ -248,7 +248,7 @@
       "deadlineDate": "2026-04-03",
       "prizePoolKrw": 580000,
       "prizeLabel": "약 400만원 + 해외 프로그램",
-      "viewCount": 432,
+      "viewCount": 433,
       "applyCount": 33,
       "categories": [
         "generative-ai"
@@ -285,7 +285,7 @@
       "deadlineDate": "2026-04-05",
       "prizePoolKrw": 36250000,
       "prizeLabel": "약 3,625만원",
-      "viewCount": 10,
+      "viewCount": 11,
       "applyCount": 8,
       "categories": [
         "computer-vision",
@@ -331,7 +331,7 @@
       "deadlineDate": "2026-04-12",
       "prizePoolKrw": 43500000,
       "prizeLabel": "약 4,350만원",
-      "viewCount": 14,
+      "viewCount": 16,
       "applyCount": 7,
       "categories": [
         "data-science",
@@ -372,7 +372,7 @@
       "deadlineDate": "2026-04-30",
       "prizePoolKrw": 12800000,
       "prizeLabel": "약 220만원",
-      "viewCount": 14,
+      "viewCount": 15,
       "applyCount": 13,
       "categories": [
         "generative-ai"
